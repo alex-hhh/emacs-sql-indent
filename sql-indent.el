@@ -1,6 +1,11 @@
-;; sql-indent.el -- Support for indenting code in SQL files.
-;;
+;;; sql-indent.el --- Support for indenting code in SQL files.
 ;; Copyright (C) 2015 Alex Harsanyi
+;;
+;; Author: Alex Harsanyi (AlexHarsanyi@gmail.com)
+;; Created: 27 Sep 2006
+;; Version: 1.0
+;; Keywords: languages sql
+;; Homepage: https://github.com/alex-hhh/emacs-sql-indent
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -15,23 +20,22 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program; if not, write to the Free Software
 ;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-;;
 
-;; Author: Alex Harsanyi (AlexHarsanyi@gmail.com)
-;; Created: 27 Sep 2006 (public release 21 Dec 2015)
-;; Keywords: languages sql
-
-;;; Commentary
+;;; Commentary:
 ;;
-;; To use this mode, byte compile this file, than add the following to
-;; your ~/.emacs.el:
+;; Add suport for smart indentation when editing SQL files.  It is intended to
+;; work as an "add on" to the existing sql-mode. This file defines the
+;; `sqlind-indent-line' function that is suitable as a value for
+;; `indent-line-function'.
 ;;
-;; (require 'sql-indent)
-;; (add-hook 'sql-mode-hook 'sqlind-setup)
+;; To use it, install the package, than add the following to your ~/.emacs.el:
+;;
+;; (eval-after-load "sql" '(progn (add-hook 'sql-mode-hook 'sqlind-setup)))
 ;;
 ;; To adjust the indentation, see `sqlind-basic-offset' and
 ;; `sqlind-indentation-offsets-alist' variables.
-;;
+
+;;; Code:
 
 (require 'sql)
 (eval-when-compile (require 'cc-defs))  ; for c-point
@@ -1659,10 +1663,12 @@ determine how to indent each type of syntactic element."
   (set (make-local-variable 'indent-line-function) 'sqlind-indent-line)
   (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement))
 
-(provide 'sqlind)
+(provide 'sql-indent)
 
 ;;; Local Variables:
 ;;; mode: emacs-lisp
 ;;; mode: outline-minor
 ;;; outline-regexp: ";;;;+"
 ;;; End:
+
+;;; sql-indent.el ends here
