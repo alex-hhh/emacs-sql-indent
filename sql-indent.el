@@ -585,11 +585,11 @@ See also `sqlind-beginning-of-block'"
   "Return the syntax inside a CASE expression begining at START."
   (save-excursion
     (goto-char pos)
-    (cond ((looking-at "when\\|end")
+    (cond ((looking-at "when\\|end\\|else")
            ;; A WHEN, or END clause is indented relative to the start of the case
            ;; expression
            (cons 'case-clause start))
-          ((looking-at "then\\|else")
+          ((looking-at "then")
            ;; THEN and ELSE clauses are indented relative to the start of the
            ;; when clause, which we must find
            (while (not (and (re-search-backward "\\bwhen\\b")
