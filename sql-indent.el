@@ -645,7 +645,9 @@ See also `sqlind-beginning-of-block'"
    "where\\|"
    "order[ \t\r\n\f]+by\\|"
    "having\\|"
-   "group[ \t\r\n\f]+by"
+   "group[ \t\r\n\f]+by\\|"
+   "connect[ \t\r\n\f]+by\\|"
+   "start[ \t\r\n\f]+with"
    "\\)\\_>"))
 
 (defconst sqlind-select-join-regexp
