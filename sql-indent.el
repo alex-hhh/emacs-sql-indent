@@ -1,4 +1,4 @@
-;;; sql-indent.el --- Support for indenting code in SQL files.
+;;; sql-indent.el --- Support for indenting code in SQL files. -*- lexical-binding: t -*-
 ;; Copyright (C) 2015 Alex Harsanyi
 ;;
 ;; Author: Alex Harsanyi (AlexHarsanyi@gmail.com)
@@ -1462,16 +1462,16 @@ returned."
 	  (setq indent-info (cdr indent-info)))
 	new-indentation)))
 
-(defun sqlind-report-sytax-error (syntax base-indentation)
-  (destructuring-bind (sym msg start end) (caar syntax)
+(defun sqlind-report-sytax-error (syntax _base-indentation)
+  (destructuring-bind (_sym msg start end) (caar syntax)
     (message "%s (%d %d)" msg start end))
   nil)
 
-(defun sqlind-report-runaway-string (syntax base-indentation)
+(defun sqlind-report-runaway-string (_syntax _base-indentation)
   (message "runaway string constant")
   nil)
 
-(defun sqlind-use-anchor-indentation (syntax base-indentation)
+(defun sqlind-use-anchor-indentation (syntax _base-indentation)
   "Return the indentation of the line containing ANCHOR.
 By default, the column of the anchor position is uses as a base
 indentation.  You can use this function to switch to using the
@@ -1481,7 +1481,7 @@ indentation of the anchor as the base indentation."
       (goto-char anchor)
       (current-indentation))))
 
-(defun sqlind-use-previous-line-indentation (syntax base-indentation)
+(defun sqlind-use-previous-line-indentation (syntax _base-indentation)
   "Return the indentation of the previous line.
 If the start of the previous line is before the ANCHOR, use the
 column of the ANCHOR + 1."
@@ -1495,7 +1495,7 @@ column of the ANCHOR + 1."
 	    (1+ (current-column)))
 	  (current-column)))))
 
-(defun sqlind-indent-comment-continuation (syntax base-indentation)
+(defun sqlind-indent-comment-continuation (syntax _base-indentation)
   "Return the indentation proper for a line inside a comment.
 If the current line matches `sqlind-comment-prefix' or
 `sqlind-comment-end', we indent to one plus the column of the
@@ -1591,7 +1591,7 @@ An exception is made for a 'where' clause: if the current line
 starts with an 'and' or an 'or' the line is indented so that the
 and/or is right justified with the 'where' clause."
   (let ((origin (point)))
-    (destructuring-bind ((sym clause) . anchor) (car syntax)
+    (destructuring-bind ((_sym clause) . anchor) (car syntax)
       (save-excursion
 	(goto-char anchor)
 	(forward-char (1+ (length clause)))
