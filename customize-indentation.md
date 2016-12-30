@@ -72,19 +72,20 @@ examples for indentation setup rules.
 The following items can be present in the indentation list for each syntax
 symbol.  Any number of them can be present, but usually on one will be there:
 
-* a NUMBER -- the NUMBER will be added to the indentation offset.
+* a `NUMBER` -- the NUMBER will be added to the indentation offset.
 
-* '+ -- the current indentation offset is incremented by `sqlind-basic-offset'
+* `+` -- the current indentation offset is incremented by `sqlind-basic-offset'
 
-* '++ -- the current indentation offset is indentation by 2 *
+* `++` -- the current indentation offset is indentation by 2 *
   `sqlind-basic-offset'
 
-* '- -- the current indentation offset is decremented by `sqlind-basic-offset'
-
-* '-- -- the current indentation offset is decremented by 2 *
+* `-` -- the current indentation offset is decremented by
   `sqlind-basic-offset'
 
-* a FUNCTION -- the syntax and current indentation offset is passed to the
+* `--` -- the current indentation offset is decremented by 2 *
+  `sqlind-basic-offset'
+
+* a `FUNCTION` -- the syntax and current indentation offset is passed to the
   function and its result is used as the new indentation offset.  This can be
   used to further customize indentation.
 
