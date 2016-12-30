@@ -7,5 +7,5 @@ To use this mode, byte compile this file, than add the following to your
     (require 'sql-indent)
     (add-hook 'sql-mode-hook 'sqlind-setup)
 
-To adjust the indentation, see `sqlind-basic-offset` and
-`sqlind-indentation-offsets-alist` variables.
+See [customize-indentation.md](customize-indentation.md) for how to customize
+the indentation rules.

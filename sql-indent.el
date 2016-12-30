@@ -1184,8 +1184,8 @@ such as aligning.  See also `sqlind-indentation-offsets-alist'.")
 
 The the SQL parsing code returns a syntax definition (either a
 symbol or a list) and an anchor point, which is a buffer
-position.  They syntax symbols can be used to define how to
-indent each line, see `sqlind-indentation-offsets-alist'
+position.  The syntax symbols can be used to define how to indent
+each line, see `sqlind-indentation-offsets-alist'
 
 The following syntax symbols are defined for SQL code:
 
@@ -1334,8 +1334,8 @@ clause (select, from, where, etc) in which the current point is.
 - (in-delete-clause CLAUSE) -- line is inside a delete CLAUSE,
   which can be \"delete from\" or \"where\".
 
-- update-clause line is inside an update statement right before
-  one of its clauses.
+- update-clause -- line is inside an update statement right
+  before one of its clauses.
 
 - (in-update-clause CLAUSE) -- line is inside an update CLAUSE,
   which can be \"update\", \"set\" or \"where\".")
@@ -1390,9 +1390,10 @@ The value of this variable is an ALIST with the format:
 `sqlind-indentation-syntax-symbols' documents the list of possible
 SYNTACTIC-SYMBOL values.
 
-INDENTATION-OFFSETS is a list of:
+INDENTATION-OFFSETS defines the adjustments made to the
+indentation for each syntactic-symbol. It is a list of:
 
-  a NUMBER -- the indentation offset will be set to that number
+  a NUMBER -- the NUMBER will be added to the indentation offset.
 
   '+ -- the current indentation offset is incremented by
 	`sqlind-basic-offset'
