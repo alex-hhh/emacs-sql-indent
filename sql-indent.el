@@ -915,7 +915,7 @@ See also `sqlind-beginning-of-block'"
 			  (list 'block-end start-kind start-label)))
 		   anchor))))
 
-	     ((eq block-kind 'else)
+	     ((memq block-kind '(else elsif))
 	      ;; search the enclosing then context and refine form there.  The
 	      ;; `cdr' in sqlind-syntax-of-line is used to remove the
 	      ;; block-start context for the else clause
