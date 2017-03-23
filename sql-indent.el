@@ -209,7 +209,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (not (eq (point) (or limit (point-min))))
         (when (re-search-backward
-               ";\\|begin\\b\\|loop\\b\\|then\\b\\|else\\b\\|)"
+               ";\\|\\b\\(begin\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
                limit 'noerror)
           (let ((candidate-pos (match-end 0)))
             (cond ((looking-at ")")
@@ -217,12 +217,16 @@ But don't go before LIMIT."
                    ;; of the keywords inside one of them and think this is a
                    ;; statement start.
                    (progn (forward-char 1) (forward-sexp -1)))
-                  ((looking-at "\\bthen\\|else\\b")
+                  ((looking-at "\\b\\(then\\|else\\)\\b")
                    ;; then and else start statements when they are inside
                    ;; blocks, not expressions.
                    (sqlind-backward-syntactic-ws)
                    (when (looking-at ";")
+                     ;; Statement begins after the keyword
                      (throw 'done candidate-pos)))
+                  ((looking-at "\\b\\(if\\|elsif\\)\\b")
+                   ;; statement begins at the start of the keyword
+                   (throw 'done (point)))
                   ((not (sqlind-in-comment-or-string (point)))
                    (throw 'done candidate-pos)))))))))
 
@@ -354,6 +358,23 @@ See also `sqlind-beginning-of-block'"
 	   (when (null sqlind-end-stmt-stack)
 	     (throw 'finished (list 'in-block 'exception "")))))))))
 
+(defun sqlind-maybe-if-statement ()
+  "If (point) is on an IF statement, report its syntax."
+  (when (looking-at "if")
+    (save-excursion
+      (sqlind-backward-syntactic-ws)
+      (forward-word -1)
+      (unless (looking-at "end")        ; we don't want to match an "end if" here
+        (cond ((null sqlind-end-stmt-stack)
+               (throw 'finished (list 'in-block 'if "")))
+              (t
+               (destructuring-bind (pos kind _label)
+                   (pop sqlind-end-stmt-stack)
+                 (unless (eq kind 'if)
+                   (throw 'finshed
+                     (list 'syntax-error
+                           "bad closing for if block" (point) pos))))))))))
+
 (defun sqlind-maybe-else-statement ()
   "If (point) is on an ELSE statement, report its syntax.
 Only keywords in program code are matched, not the ones inside
@@ -408,7 +429,7 @@ See also `sqlind-beginning-of-block'"
 			    (if (looking-at "<<\\([a-z0-9_]+\\)>>\\_>")
 				(sqlind-match-string 1) "")))
 	     (previous-block (save-excursion
-			       (forward-char -1)
+			       (ignore-errors (forward-char -1))
 			       (cons (sqlind-beginning-of-block) (point))))
 	     (previous-block-kind (nth 0 previous-block)))
 
@@ -552,7 +573,7 @@ See also `sqlind-beginning-of-block'"
 
 (defconst sqlind-start-block-regexp
   (concat "\\(\\b"
-	  (regexp-opt '("then" "else" "elsif" "loop"
+	  (regexp-opt '("if" "then" "else" "elsif" "loop"
 			"begin" "declare" "create"
 			"procedure" "function" "end") t)
 	  "\\b\\)\\|)")
@@ -567,6 +588,7 @@ See also `sqlind-beginning-of-block'"
 	(or (sqlind-in-comment-or-string (point))
 	    (when (looking-at ")") (forward-char 1) (forward-sexp -1) t)
 	    (sqlind-maybe-end-statement)
+            (sqlind-maybe-if-statement)
 	    (sqlind-maybe-then-statement)
 	    (sqlind-maybe-else-statement)
 	    (sqlind-maybe-loop-statement)
