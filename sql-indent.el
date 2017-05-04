@@ -544,7 +544,7 @@ See also `sqlind-beginning-of-block'"
 	    ;; skip param list, if any.
 	    (when (looking-at "(") (ignore-errors (forward-sexp 1)))
 	    (when (looking-at "return\\(?:[ \n\r\f]+\\)\\([a-z0-9_]+\\)") (goto-char (match-end 0)))
-	    (sqlind-forward-syntactic-ws))
+	    (sqlind-forward-syntactic-ws)
 	    (when (looking-at ";")
 	      ;; not a procedure after all.
 	      (throw 'exit nil)))
