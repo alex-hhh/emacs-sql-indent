@@ -736,11 +736,18 @@ See also `sqlind-beginning-of-block'"
 			     (looking-at ",")))
 		   (throw 'finished (cons 'select-table match-pos)))
 
+		 (goto-char pos)
+		 (when (looking-at ";")
+		   (throw 'finished (cons 'select-end match-pos)))
 		 ;; otherwise, we continue the table definition from
 		 ;; the previous line.
 		 (throw 'finished (cons 'select-table-continuation match-pos))))
 
 	      (t
+	       (goto-char pos)
+	       (when (looking-at ";")
+		 (throw 'finished
+			(cons 'select-end match-pos)))
 	       (throw 'finished
 		 (cons (list 'in-select-clause clause) match-pos))))))))))
 
