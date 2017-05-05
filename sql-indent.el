@@ -162,7 +162,7 @@ a strinf or comment."
 
 (defconst sqlind-sqlplus-directive
   (concat "^"
-	  (regexp-opt '("column" "set" "rem" "define" "spool" "prompt" "clear" "compute" "whenever") t)
+	  (regexp-opt '("column" "set" "rem" "define" "spool" "prompt" "clear" "compute" "whenever" "@" "@@" "start") t)
 	  "\\b")
   "Match an SQL*Plus directive at the beginning of a line.
 A directive always stands on a line by itself -- we use that to
