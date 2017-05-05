@@ -1667,9 +1667,17 @@ syntaxes"
 indentation unit and `sqlind-indentation-offsets-alist' is used to
 determine how to indent each type of syntactic element."
   (let* ((syntax (sqlind-syntax-of-line))
-	 (column (sqlind-calculate-indentation syntax)))
-    (when column
-      (indent-line-to column))))
+	 (base-column (current-column))
+	 (indent-column (sqlind-calculate-indentation syntax)))
+    (when indent-column
+      (back-to-indentation)
+      (let ((offset (- base-column (current-column))))
+	;; avoid modifying the buffer when the indentation does not
+	;; have to change
+	(unless (eq (current-column) indent-column)
+	  (indent-line-to indent-column))
+	(when (> offset 0)
+	  (forward-char offset))))))
 
 ;;;; sqlind-setup
 
