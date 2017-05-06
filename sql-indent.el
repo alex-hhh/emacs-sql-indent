@@ -1679,13 +1679,44 @@ determine how to indent each type of syntactic element."
 	(when (> offset 0)
 	  (forward-char offset))))))
 
+;;; alignment rules
+
+(defvar sqlind-align-rules
+  ;; Line up he two sides of an equal sign in an update expression
+  `((sql-update-lineup-equals
+     (regexp . , ".*?\\(\\s *\\)=\\(\\s *\\).*")
+     (modes . '(sql-mode))
+     (group . (1 2))
+     (case-fold . t)
+     (repeat . t))
+    ;; lineup the column aliases (the "as name" part) in a select statement
+    (sql-sqlect-lineup-column-names
+     (regexp . , ".*?\\(\\s +\\)as\\(\\s +\\).*")
+     (modes . '(sql-mode))
+     (group . (1 2))
+     (case-fold . t)
+     (repeat . t))
+    )
+  "Align rules for SQL codes.
+
+These rules help aligning some SQL statements, such as the column
+names in select queries, or equal signs in update statements or
+where clauses.
+
+To use it, select the region to be aligned and type 
+
+    M-x align RET.
+
+See also `align' and `align-rules-list'")
+
 ;;;; sqlind-setup
 
 ;;;###autoload
 (defun sqlind-setup ()
   (set-syntax-table sqlind-syntax-table)
   (set (make-local-variable 'indent-line-function) 'sqlind-indent-line)
-  (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement))
+  (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
+  (setq align-mode-rules-list sqlind-align-rules))
 
 (provide 'sql-indent)
 
