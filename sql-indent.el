@@ -1121,6 +1121,8 @@ purposes. "
 		       ((looking-at "delete")
 			(push (sqlind-syntax-in-delete pos (point)) context))
 		       ((looking-at "update")
+			(push (sqlind-syntax-in-update pos (point)) context))
+		       ((looking-at "edit")
 			(push (sqlind-syntax-in-update pos (point)) context))))
 
                    ;; (when (eq (car (car context)) 'select-column-continuation)
