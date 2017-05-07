@@ -1723,6 +1723,10 @@ See also `align' and `align-rules-list'")
 ;;;###autoload
 (defun sqlind-setup ()
   (set-syntax-table sqlind-syntax-table)
+  ;; force our syntax table onto sql-mode.  This is not really clean and if
+  ;; this is integrated into sql.el, we need to convince the maintainers that
+  ;; chars like "." are more useful as symbols than punctuation.
+  (setq sql-mode-syntax-table sqlind-syntax-table)
   (set (make-local-variable 'indent-line-function) 'sqlind-indent-line)
   (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
   (setq align-mode-rules-list sqlind-align-rules))
