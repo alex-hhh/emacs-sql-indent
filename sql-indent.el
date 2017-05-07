@@ -67,8 +67,10 @@
     (modify-syntax-entry ?% "_" table)
 
     table)
-  "Syntax table used in `sql-mode' for editing SQL code.")
-
+  "Syntax table used in `sql-mode' for indenting SQL code.
+This is slightly different than the syntax table used for
+navigation: some punctuation characters are made symbol
+constituents so that syntactic navigation works over them.")
 
 ;;;; Syntactic analysis of SQL code
 
@@ -1003,77 +1005,78 @@ Only the first element of this list is used for indentation, the
 rest are 'less specific' syntaxes, mostly left in for debugging
 purposes. "
   (save-excursion
-    (let* ((pos (progn (back-to-indentation) (point)))
-	   (context-start (progn (sqlind-beginning-of-statement) (point)))
-	   (context (list (cons 'statement-continuation context-start)))
-	   (have-block-context nil))
+    (with-syntax-table sqlind-syntax-table
+      (let* ((pos (progn (back-to-indentation) (point)))
+             (context-start (progn (sqlind-beginning-of-statement) (point)))
+             (context (list (cons 'statement-continuation context-start)))
+             (have-block-context nil))
 
-      (goto-char pos)
-      (when (or (>= context-start pos)
-		(save-excursion
-		  (goto-char context-start)
-		  (looking-at sqlind-start-block-regexp)))
-	;; if we are at the start of a statement, or the nearest
-	;; statement starts after us, make the enclosing block the
-	;; starting context
-        (setq have-block-context t)
-	(let ((block-info (sqlind-beginning-of-block)))
+        (goto-char pos)
+        (when (or (>= context-start pos)
+                  (save-excursion
+                    (goto-char context-start)
+                    (looking-at sqlind-start-block-regexp)))
+          ;; if we are at the start of a statement, or the nearest
+          ;; statement starts after us, make the enclosing block the
+          ;; starting context
+          (setq have-block-context t)
+          (let ((block-info (sqlind-beginning-of-block)))
 
-          ;; certain kind of blocks end within a statement
-          ;; (e.g. create view).  If we found one of those blocks and
-          ;; it is not within our statement, we ignore the block info.
+            ;; certain kind of blocks end within a statement
+            ;; (e.g. create view).  If we found one of those blocks and
+            ;; it is not within our statement, we ignore the block info.
 
-          (if (and (listp block-info)
-                   (eq (nth 0 block-info) 'create-statement)
-                   (not (memq (nth 1 block-info) '(function procedure)))
-                   (not (eql context-start (point))))
-              (progn 
-                (setq context-start (point-min))
-                (setq context (list (cons 'toplevel context-start))))
+            (if (and (listp block-info)
+                     (eq (nth 0 block-info) 'create-statement)
+                     (not (memq (nth 1 block-info) '(function procedure)))
+                     (not (eql context-start (point))))
+                (progn 
+                  (setq context-start (point-min))
+                  (setq context (list (cons 'toplevel context-start))))
               ;; else
               (setq context-start (point))
               (setq context (list (cons block-info context-start))))))
 
-      (let ((parse-info (parse-partial-sexp context-start pos)))
-	(cond ((nth 4 parse-info)   ; inside a comment
-	       (push (cons 'comment-continuation (nth 8 parse-info)) context))
-	      ((nth 3 parse-info)   ; inside a string
-	       (push (cons 'string-continuation (nth 8 parse-info)) context))
-	      ((> (nth 0 parse-info) 0) ; nesting
-	       (let ((start (nth 1 parse-info)))
-		 (goto-char (1+ start))
-		 (skip-chars-forward " \t\r\n\f\v" pos)
-		 (push (cons
-			(if (eq (point) pos)
-			    'nested-statement-open
+        (let ((parse-info (parse-partial-sexp context-start pos)))
+          (cond ((nth 4 parse-info)   ; inside a comment
+                 (push (cons 'comment-continuation (nth 8 parse-info)) context))
+                ((nth 3 parse-info)   ; inside a string
+                 (push (cons 'string-continuation (nth 8 parse-info)) context))
+                ((> (nth 0 parse-info) 0) ; nesting
+                 (let ((start (nth 1 parse-info)))
+                   (goto-char (1+ start))
+                   (skip-chars-forward " \t\r\n\f\v" pos)
+                   (push (cons
+                          (if (eq (point) pos)
+                              'nested-statement-open
 			    'nested-statement-continuation)
-			start)
-		       context)))))
+                          start)
+                         context)))))
 
-      ;; now let's refine the syntax by adding info about the current line
-      ;; into the mix.
+        ;; now let's refine the syntax by adding info about the current line
+        ;; into the mix.
 
-      (let* ((most-inner-syntax (car context))
-	     (syntax (car most-inner-syntax))
-	     (anchor (cdr most-inner-syntax))
-	     (syntax-symbol (if (symbolp syntax) syntax (nth 0 syntax))))
-        
-        (goto-char pos)
-        
-	(cond
-	  ;; do we start a comment?
-	  ((and (not (eq syntax-symbol 'comment-continuation))
-		(looking-at sqlind-comment-start-skip))
-	   (push (cons 'comment-start anchor) context))
+        (let* ((most-inner-syntax (car context))
+               (syntax (car most-inner-syntax))
+               (anchor (cdr most-inner-syntax))
+               (syntax-symbol (if (symbolp syntax) syntax (nth 0 syntax))))
+          
+          (goto-char pos)
+          
+          (cond
+            ;; do we start a comment?
+            ((and (not (eq syntax-symbol 'comment-continuation))
+                  (looking-at sqlind-comment-start-skip))
+             (push (cons 'comment-start anchor) context))
 
-	  ;; Refine a statement continuation
-	  ((memq syntax-symbol '(statement-continuation nested-statement-continuation))
+            ;; Refine a statement continuation
+            ((memq syntax-symbol '(statement-continuation nested-statement-continuation))
 
-	   ;; a (nested) statement continuation which starts with loop
-	   ;; or then is a block start
-	   (if (and have-block-context (looking-at "\\(loop\\|then\\|when\\)\\_>"))
-	       (push (cons (list 'block-start (intern (sqlind-match-string 0))) anchor)
-		     context)
+             ;; a (nested) statement continuation which starts with loop
+             ;; or then is a block start
+             (if (and have-block-context (looking-at "\\(loop\\|then\\|when\\)\\_>"))
+                 (push (cons (list 'block-start (intern (sqlind-match-string 0))) anchor)
+                       context)
 	       ;; else
 	       (goto-char anchor)
 	       (when (eq syntax 'nested-statement-continuation)
@@ -1091,101 +1094,101 @@ purposes. "
 		     (when (eq (point) pos)
 		       (push (cons 'labeled-statement-start anchor) context)))
 
-		   ;; else, maybe we have a DML statement (select, insert,
-		   ;; update and delete)
+                 ;; else, maybe we have a DML statement (select, insert,
+                 ;; update and delete)
 
-		   ;; skip a cursor definition if it is before our point
-		   (when (looking-at "cursor[ \t\r\n\f]+[a-z0-9_]+[ \t\r\n\f]+is[ \t\r\n\f]+")
-		     (when (<= (match-end 0) pos)
-		       (goto-char (match-end 0))))
+                 ;; skip a cursor definition if it is before our point
+                 (when (looking-at "cursor[ \t\r\n\f]+[a-z0-9_]+[ \t\r\n\f]+is[ \t\r\n\f]+")
+                   (when (<= (match-end 0) pos)
+                     (goto-char (match-end 0))))
 
-		   ;; skip a forall statement if it is before our point
-		   (when (looking-at "forall\\b")
-		     (when (re-search-forward "\\b\\(select\\|update\\|delete\\|insert\\)\\b" pos 'noerror)
-		       (goto-char (match-beginning 0))))
+                 ;; skip a forall statement if it is before our point
+                 (when (looking-at "forall\\b")
+                   (when (re-search-forward "\\b\\(select\\|update\\|delete\\|insert\\)\\b" pos 'noerror)
+                     (goto-char (match-beginning 0))))
 
-		   ;; only check for syntax inside DML clauses if we are not
-		   ;; at the start of one.
-		   (when (< (point) pos)
-		     (cond
-                       ;; NOTE: We only catch here "CASE" clauses which start
-                       ;; inside a nested paranthesis
-                       ((looking-at "case")
-                        (push (sqlind-syntax-in-case pos (point)) context))
-                       ((looking-at "with")
-                        (push (sqlind-syntax-in-with pos (point)) context))
-		       ((looking-at "select")
-			(push (sqlind-syntax-in-select pos (point)) context))
-		       ((looking-at "insert")
-			(push (sqlind-syntax-in-insert pos (point)) context))
-		       ((looking-at "delete")
-			(push (sqlind-syntax-in-delete pos (point)) context))
-		       ((looking-at "update")
-			(push (sqlind-syntax-in-update pos (point)) context))))
+                 ;; only check for syntax inside DML clauses if we are not
+                 ;; at the start of one.
+                 (when (< (point) pos)
+                   (cond
+                     ;; NOTE: We only catch here "CASE" clauses which start
+                     ;; inside a nested paranthesis
+                     ((looking-at "case")
+                      (push (sqlind-syntax-in-case pos (point)) context))
+                     ((looking-at "with")
+                      (push (sqlind-syntax-in-with pos (point)) context))
+                     ((looking-at "select")
+                      (push (sqlind-syntax-in-select pos (point)) context))
+                     ((looking-at "insert")
+                      (push (sqlind-syntax-in-insert pos (point)) context))
+                     ((looking-at "delete")
+                      (push (sqlind-syntax-in-delete pos (point)) context))
+                     ((looking-at "update")
+                      (push (sqlind-syntax-in-update pos (point)) context))))
 
-                   ;; (when (eq (car (car context)) 'select-column-continuation)
-                   ;;   ;; case expressions can show up here, maybe refine this
-                   ;;   ;; syntax
-                   ;;   t
-                   ;;   )
+                 ;; (when (eq (car (car context)) 'select-column-continuation)
+                 ;;   ;; case expressions can show up here, maybe refine this
+                 ;;   ;; syntax
+                 ;;   t
+                 ;;   )
 
-                   )))
+                 )))
 
-	  ;; create block start syntax if needed
+            ;; create block start syntax if needed
 
-	  ((and (eq syntax-symbol 'in-block)
-		(memq (nth 1 syntax) '(if elsif then case))
-		(looking-at "\\(then\\|\\(els\\(e\\|if\\)\\)\\)\\_>"))
-	   (let ((what (intern (sqlind-match-string 0))))
-	     ;; the only invalid combination is a then statement in
-	     ;; an (in-block "then") context
-	     (unless (and (eq what 'then) (equal (nth 1 syntax) 'then))
-	       (push (cons (list 'block-start what) anchor) context))))
+            ((and (eq syntax-symbol 'in-block)
+                  (memq (nth 1 syntax) '(if elsif then case))
+                  (looking-at "\\(then\\|\\(els\\(e\\|if\\)\\)\\)\\_>"))
+             (let ((what (intern (sqlind-match-string 0))))
+               ;; the only invalid combination is a then statement in
+               ;; an (in-block "then") context
+               (unless (and (eq what 'then) (equal (nth 1 syntax) 'then))
+                 (push (cons (list 'block-start what) anchor) context))))
 
-	  ;; note that begin is not a block-start in a 'in-begin-block
-	  ;; context
-	  ((and (memq syntax-symbol '(defun-start declare-statement toplevel))
-		(looking-at "begin\\_>"))
-	   (push (cons (list 'block-start 'begin) anchor) context))
+            ;; note that begin is not a block-start in a 'in-begin-block
+            ;; context
+            ((and (memq syntax-symbol '(defun-start declare-statement toplevel))
+                  (looking-at "begin\\_>"))
+             (push (cons (list 'block-start 'begin) anchor) context))
 
-	  ((and (memq syntax-symbol '(defun-start package package-body))
-		(looking-at "\\(is\\|as\\)\\_>"))
-	   (push (cons (list 'block-start 'is-or-as) anchor) context))
+            ((and (memq syntax-symbol '(defun-start package package-body))
+                  (looking-at "\\(is\\|as\\)\\_>"))
+             (push (cons (list 'block-start 'is-or-as) anchor) context))
 
-	  ((and (memq syntax-symbol '(in-begin-block in-block))
-		(looking-at "exception\\_>"))
-	   (push (cons (list 'block-start 'exception) anchor) context))
+            ((and (memq syntax-symbol '(in-begin-block in-block))
+                  (looking-at "exception\\_>"))
+             (push (cons (list 'block-start 'exception) anchor) context))
 
-	  ((and (eq syntax-symbol 'in-block)
-		(memq (nth 1 syntax) '(then case))
-		(looking-at "when\\_>"))
-	   (push (cons (list 'block-start 'when) anchor) context))
+            ((and (eq syntax-symbol 'in-block)
+                  (memq (nth 1 syntax) '(then case))
+                  (looking-at "when\\_>"))
+             (push (cons (list 'block-start 'when) anchor) context))
 
-	  ;; indenting the select clause inside a view
-	  ((and (eq syntax-symbol 'create-statement)
-		(eq (nth 1 syntax) 'view))
-	   (goto-char anchor)
-	   (catch 'done
-	     (while (re-search-forward "\\bselect\\b" pos 'noerror)
-	       (goto-char (match-beginning 0))
-	       (when (sqlind-same-level-statement (point) anchor)
-		 (push (sqlind-syntax-in-select pos (point)) context)
-		 (throw 'done nil))
-	       (goto-char (match-end 0)))))
+            ;; indenting the select clause inside a view
+            ((and (eq syntax-symbol 'create-statement)
+                  (eq (nth 1 syntax) 'view))
+             (goto-char anchor)
+             (catch 'done
+               (while (re-search-forward "\\bselect\\b" pos 'noerror)
+                 (goto-char (match-beginning 0))
+                 (when (sqlind-same-level-statement (point) anchor)
+                   (push (sqlind-syntax-in-select pos (point)) context)
+                   (throw 'done nil))
+                 (goto-char (match-end 0)))))
 
-	  ;; create a block-end syntax if needed
+            ;; create a block-end syntax if needed
 
-	  ((and (not (eq syntax-symbol 'comment-continuation))
-                (looking-at "end[ \t\r\n\f]*\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?[ \t\r\n\f]*\\(\\_<\\(?:[a-z0-9_]+\\)\\_>\\)?"))
-	   ;; so we see the syntax which closes the current block.  We still
-	   ;; need to check if the current end is a valid closing block
-	   (let ((kind (or (sqlind-match-string 1) ""))
-		 (label (or (sqlind-match-string 2) "")))
-	     (push (sqlind-refine-end-syntax
-		    (if (equal kind "") nil (intern kind))
-		    label (point) context)
-		   context)))))
-      context)))
+            ((and (not (eq syntax-symbol 'comment-continuation))
+                  (looking-at "end[ \t\r\n\f]*\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?[ \t\r\n\f]*\\(\\_<\\(?:[a-z0-9_]+\\)\\_>\\)?"))
+             ;; so we see the syntax which closes the current block.  We still
+             ;; need to check if the current end is a valid closing block
+             (let ((kind (or (sqlind-match-string 1) ""))
+                   (label (or (sqlind-match-string 2) "")))
+               (push (sqlind-refine-end-syntax
+                      (if (equal kind "") nil (intern kind))
+                      label (point) context)
+                     context)))))
+        context))))
 
 (defun sqlind-show-syntax-of-line ()
   "Print the syntax of the current line."
@@ -1722,11 +1725,6 @@ See also `align' and `align-rules-list'")
 
 ;;;###autoload
 (defun sqlind-setup ()
-  (set-syntax-table sqlind-syntax-table)
-  ;; force our syntax table onto sql-mode.  This is not really clean and if
-  ;; this is integrated into sql.el, we need to convince the maintainers that
-  ;; chars like "." are more useful as symbols than punctuation.
-  (setq sql-mode-syntax-table sqlind-syntax-table)
   (set (make-local-variable 'indent-line-function) 'sqlind-indent-line)
   (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
   (setq align-mode-rules-list sqlind-align-rules))
