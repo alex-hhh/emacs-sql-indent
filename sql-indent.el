@@ -1059,7 +1059,11 @@ purposes. "
 	     (syntax-symbol (if (symbolp syntax) syntax (nth 0 syntax))))
         
         (goto-char pos)
-        
+	(when (and (not (eq syntax-symbol 'comment-continuation))
+		(looking-at sqlind-comment-start-skip))
+	  (forward-line -1)
+	  (back-to-indentation))
+
 	(cond
 	  ;; do we start a comment?
 	  ((and (not (eq syntax-symbol 'comment-continuation))
