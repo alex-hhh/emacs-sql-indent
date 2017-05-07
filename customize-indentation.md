@@ -20,13 +20,17 @@ them up in your init.el file before loading the package.  For example:
     ;; Update indentation rules, select, insert, delete and update keywords
     ;; are aligned with the clause start
 
-    (defvar old-sqlind-indentation-offsets-alist sqlind-indentation-offsets-alist)
-    (setq sqlind-indentation-offsets-alist
+    (defvar my-sql-indentation-offsets-alist
       `((select-clause 0)
         (insert-clause 0)
         (delete-clause 0)
         (update-clause 0)
-        ,@old-sqlind-indentation-offsets-alist))
+        ,@sqlind-default-indentation-offsets-alist))
+        
+    (add-hoook 'sql-mode-hook 
+        (lambda () 
+           (setq sqlind-indentation-offsets-alist
+               my-sql-indentation-offsets-alist)))
 
 The simplest way to adjust the indentation is to explore the syntactic
 information using `sqlind-show-syntax-of-line`.  To use it, move the cursor to

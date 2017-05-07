@@ -1362,7 +1362,7 @@ clause (select, from, where, etc) in which the current point is.
 - (in-update-clause CLAUSE) -- line is inside an update CLAUSE,
   which can be \"update\", \"set\" or \"where\".")
 
-(defvar sqlind-indentation-offsets-alist
+(defconst sqlind-default-indentation-offsets-alist
   '((syntax-error                   sqlind-report-sytax-error)
     (in-string                      sqlind-report-runaway-string)
 
@@ -1435,6 +1435,15 @@ indentation for each syntactic-symbol. It is a list of:
 
 See `sqlind-calculate-indentation' for how the indentation offset
 is calculated.")
+
+(defvar sqlind-indentation-offsets-alist
+  sqlind-default-indentation-offsets-alist
+  "Define the indentation amount for each syntactic symbol.
+See also `sqlind-default-indentation-offsets-alist',
+`sqlind-indentation-syntax-symbols' and
+`sqlind-calculate-indentation'")
+
+(make-variable-buffer-local 'sqlind-indentation-offsets-alist)
 
 (defun sqlind-calculate-indentation (syntax &optional base-indentation)
   "Return the indentation that should be applied to the current line.
