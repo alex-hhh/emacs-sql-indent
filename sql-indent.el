@@ -704,12 +704,15 @@ See also `sqlind-beginning-of-block'"
 	       ;; we are in the column selection section.
 	       (goto-char pos)
 	       (sqlind-backward-syntactic-ws)
-	       (throw 'finished
-		 (cons (if (or (eq (match-end 0) (1+ (point)))
-			       (looking-at ","))
-			   'select-column
-			   'select-column-continuation)
-		       match-pos)))
+	       (let ((syntactics-sym (if (or (eq (match-end 0) (1+ (point)))
+					     (looking-at ","))
+					 'select-column
+				       'select-column-continuation)))
+		 (goto-char pos)
+		 (when (and (looking-at "||")
+			    (eq syntactics-sym 'select-column-continuation))
+		   (decf match-pos 3)) ;; "|| "
+		 (throw 'finished (cons syntactics-sym match-pos))))
 
 	      ((looking-at "from")
 	       ;; FROM is only keyword if the previous char is NOT a
