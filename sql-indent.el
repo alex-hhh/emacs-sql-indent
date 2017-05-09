@@ -1952,8 +1952,9 @@ instead."
   (set (make-local-variable 'indent-line-function) 'sqlind-indent-line)
   (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
   (setq align-mode-rules-list sqlind-align-rules)
-  (when (eq direction 'left)
-    (setq sqlind-indentation-offsets-alist sqlind-indentation-left-offsets-alist)))
+  (if (eq direction 'left)
+      (setq sqlind-indentation-offsets-alist sqlind-indentation-left-offsets-alist)
+    (setq sqlind-indentation-offsets-alist sqlind-indentation-right-offsets-alist)))
 
 ;; (add-hook 'sql-mode-hook
 ;;           (lambda ()
