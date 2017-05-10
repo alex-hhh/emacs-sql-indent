@@ -1207,6 +1207,8 @@ Indentation is usually done in multiples of this amount, but
 special indentation functions can do other types of indentation
 such as aligning.  See also `sqlind-indentation-offsets-alist'.")
 
+(make-variable-buffer-local 'sqlind-basic-offset)
+
 (defvar sqlind-indentation-syntax-symbols '()
   "This variable exists just for its documentation.
 
@@ -1500,6 +1502,21 @@ returned."
 	  (setq indent-info (cdr indent-info)))
 	new-indentation)))
 
+(defun sqlind-find-syntax (syntax-symbol syntax)
+  "Find the SYNTAX-SYMBOL in the SYNTAX chain.
+SYNTAX chain is a list of (SYNTAX-SYMBOL . ANCHOR), as returned
+by `sqlind-syntax-of-line'.  The function finds the fist element
+which matches the specified syntax symbol.
+
+See `sqlind-indentation-syntax-symbols' for the possible syntax
+symbols and their meaning."
+  (if (null syntax)
+      nil
+    (let ((stx (car (car syntax))))
+      (if (if (atom stx) (eq stx syntax-symbol) (eq (car stx) syntax-symbol))
+          (car syntax)
+        (sqlind-find-syntax syntax-symbol (cdr syntax))))))
+
 (defun sqlind-report-sytax-error (syntax _base-indentation)
   (destructuring-bind (_sym msg start end) (caar syntax)
     (message "%s (%d %d)" msg start end))
@@ -1518,6 +1535,15 @@ indentation of the anchor as the base indentation."
     (save-excursion
       (goto-char anchor)
       (current-indentation))))
+
+(defun sqlind-lineup-to-anchor (syntax _base-indentation)
+  "Return the column of the anchor point of SYNTAX.
+This need not be the indentation of the actual line that contains
+anchor."
+  (let ((anchor (cdar syntax)))
+    (save-excursion
+      (goto-char anchor)
+      (current-column))))
 
 (defun sqlind-use-previous-line-indentation (syntax _base-indentation)
   "Return the indentation of the previous line.
@@ -1674,6 +1700,81 @@ syntaxes"
 	  (+ base-indentation offset)
 	  base-indentation))))
 
+(defun sqlind-lineup-joins-to-anchor (syntax base-indentation)
+  "Align JOIN keywords with the anchor point of SYNTAX.
+If the line starts with an INNER,OUTER or CROSS JOIN keyword,
+return the column of the anchor point, otherwise return
+BASE-INDENTATION.
+
+If this rule is added to `select-table-continuation' indentation,
+it will indent lines starting with JOIN keywords to line up with
+the FROM keyword."
+  (if (looking-at "\\b\\(\\(inner\\|outer\\|cross\\)\\s-+\\)?join\\b")
+      (sqlind-lineup-to-anchor syntax base-indentation)
+    base-indentation))
+
+(defun sqlind-lineup-open-paren-to-anchor (syntax base-indentation)
+  "Align an open paranthesis with the anchor point of SYNTAX.
+If the line starts with an open paren '(', return the column of
+the anchor point.  If line does not start with an open paren, the
+function returns BASE-INDENTATION, acting as a no-op."
+  (save-excursion
+    (back-to-indentation)
+    (if (looking-at "(")
+        (sqlind-lineup-to-anchor syntax base-indentation)
+      base-indentation)))
+
+(defun sqlind-lineup-close-paren-to-open (syntax base-indentation)
+  "Align a closing paren with the corresponding open paren.
+If line starts with a closing paren ')', the corresponding
+'nested-statement-continuation syntax is found in SYNTAX and the
+column of the anchor point is returned. BASE-INDENTATION is
+ignored in that case.
+
+If line does not start with a closing paren, the function return
+BASE-INDENTATION, acting as a no-op."
+  (save-excursion
+    (back-to-indentation)
+    (if (looking-at ")")
+        (let ((stx (sqlind-find-syntax 'nested-statement-continuation syntax)))
+          (if stx
+              (let ((anchor (cdr stx)))
+                (goto-char anchor)
+                (current-column))
+            base-indentation))
+      base-indentation)))
+
+(defun sqlind-adjust-comma (_syntax base-indentation)
+  "Lineup lines starting with a comma ',' to the word start.
+Adjust BASE-INDENTATION so that the actual word is lined up. For
+example:
+
+  SELECT col1
+     ,   col2 -- ignore the comma and align the actual word.
+"
+  (save-excursion
+    (back-to-indentation)
+    (let ((ofs (if (looking-at ",\\s-*") (length (match-string 0)) 0)))
+      (max 0 (- base-indentation ofs)))))
+
+(defun sqlind-lineup-into-nested-statement (syntax _base-indentation)
+  "Align the line to the first word inside a nested statement.
+Return the column of the first non-witespace char in a nested
+statement.  For example:
+
+  (    a,
+       b, -- b is always aligned with 'a'
+  )
+
+This function only makes sense in a
+'nested-statement-continuation sytnax indentation rule.
+"
+  (save-excursion
+    (let ((anchor (cdr (car syntax))))
+      (goto-char anchor)
+      (forward-char 1)
+      (sqlind-forward-syntactic-ws)
+      (current-column))))
 
 
 (defun sqlind-indent-line ()

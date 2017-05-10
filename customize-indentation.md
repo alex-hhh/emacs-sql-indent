@@ -27,7 +27,7 @@ them up in your init.el file before loading the package.  For example:
         (update-clause 0)
         ,@sqlind-default-indentation-offsets-alist))
         
-    (add-hoook 'sql-mode-hook 
+    (add-hook 'sql-mode-hook 
         (lambda () 
            (setq sqlind-indentation-offsets-alist
                my-sql-indentation-offsets-alist)))
@@ -100,6 +100,39 @@ The following functions are available as part of the package:
 
 * `sqlind-use-previous-line-indentation` -- discards the current offset and
   returns the indentation column of the previous line
+  
+* `sqlind-lineup-to-anchor` -- discards the current offset and returns the
+  column of the anchor point, which may be different than the indentation
+  column
+  
+* `sqlind-lineup-open-paren-to-anchor` -- if the line starts with an open
+  paren, discard the current offset and return the column of the anchor point.
+  
+* `sqlind-lineup-close-paren-to-open` -- if the line starts with a close
+  paren, discard the current offset and return the column of the corresponding
+  open paren.
+  
+* `sqlind-adjust-comma` -- if the line starts with a comma, adjust the current
+  offset so that the line is indented to the first word character.  For
+  example, if added to a 'select-column' syntax indentation rule, it will
+  indent as follows:
+  
+```sql
+select col1
+   ,   col2 -- align "col2" to "col1"
+from my_table;
+```
+
+* `sqlind-lineup-into-nested-statement` -- discard the current offset and
+  return the column of the first word inside a nested statement.  This rule
+  makes sense only for 'nested-statement-continuation' syntax indentation
+  rule, it will indent as follows:
+  
+```sql
+(    a,
+     b  -- b is aligned with a
+)
+```
 
 * `sqlind-indent-comment-start`, `sqlind-indent-comment-continuation` -- used
   to indent comments
@@ -114,6 +147,8 @@ statements.  Have a look at their doc strings for what they do:
 * `sqlind-lineup-to-clause-end`
 
 * `sqlind-right-justify-clause`
+
+* `sqlind-lineup-joins-to-anchor`
 
 ## Syntactic symbols
 
