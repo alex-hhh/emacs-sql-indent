@@ -1798,21 +1798,41 @@ determine how to indent each type of syntactic element."
 ;;; alignment rules
 
 (defvar sqlind-align-rules
-  ;; Line up he two sides of an equal sign in an update expression
-  `((sql-update-lineup-equals
-     (regexp . , ".*?\\(\\s *\\)=\\(\\s *\\).*")
-     (modes . '(sql-mode))
-     (group . (1 2))
+  '(;; Line up the two side of arrow =>
+    (sql-arrow-lineup
+     (regexp . "\\(\\s-*\\)=>\\(\\s-*\\)")
+     (modes quote (sql-mode))
+     (group 1 2)
+     (case-fold . t)
+     (repeat . t))
+    ;; Line up the two sides of an assigment
+    (sql-assign-lineup
+     (regexp . "\\(\\s-*\\):=\\(\\s-*\\)")
+     (modes quote (sql-mode))
+     (group 1 2)
+     (case-fold . t)
+     (repeat . t))
+    ;; Line up the two sides of in / out / in out parameter
+    (sql-param-lineup-in-out
+     (regexp . "\\(\\s-+\\)\\(in out\\|in\\|out\\)\\(\\s-+\\)")
+     (modes quote (sql-mode))
+     (group 1 3)
+     (case-fold . t)
+     (repeat . t))
+    ;; Line up the two sides of an equal sign in an update expression
+    (sql-equals
+     (regexp . "\\(\\s-*[^:]\\)=\\([^>]\\s-*\\)")
+     (modes quote (sql-mode))
+     (group 1 2)
      (case-fold . t)
      (repeat . t))
     ;; lineup the column aliases (the "as name" part) in a select statement
-    (sql-sqlect-lineup-column-names
-     (regexp . , ".*?\\(\\s +\\)as\\(\\s +\\).*")
-     (modes . '(sql-mode))
-     (group . (1 2))
+    (sql-select-lineup-column-names
+     (regexp . ".*?\\(\\s +\\)as\\(\\s +\\).*")
+     (modes quote (sql-mode))
+     (group 1 2)
      (case-fold . t)
-     (repeat . t))
-    )
+     (repeat . t)))
   "Align rules for SQL codes.
 
 These rules help aligning some SQL statements, such as the column
