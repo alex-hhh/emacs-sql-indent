@@ -703,13 +703,16 @@ See also `sqlind-beginning-of-block'"
 	      ((looking-at "select\\(\\s *\\_<\\(top\\s +[0-9]+\\|distinct\\|unique\\)\\_>\\)?")
 	       ;; we are in the column selection section.
 	       (goto-char pos)
-	       (sqlind-backward-syntactic-ws)
-	       (throw 'finished
-		 (cons (if (or (eq (match-end 0) (1+ (point)))
-			       (looking-at ","))
-			   'select-column
-			   'select-column-continuation)
-		       match-pos)))
+               (if (looking-at ",")
+                   (throw 'finished (cons 'select-column match-pos))
+                 (progn
+                   (sqlind-backward-syntactic-ws)
+                   (throw 'finished
+                     (cons (if (or (eq (match-end 0) (1+ (point)))
+                                   (looking-at ","))
+                               'select-column
+                             'select-column-continuation)
+                           match-pos)))))
 
 	      ((looking-at "from")
 	       ;; FROM is only keyword if the previous char is NOT a
