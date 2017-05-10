@@ -1809,9 +1809,16 @@ determine how to indent each type of syntactic element."
      (repeat . t))
     ;; Line up the two sides of an assigment
     (sql-assign-lineup
-     (regexp . "\\(\\s-*\\):=\\(\\s-*\\)")
+     (regexp . "^\\s-*\\S-+\\(\\s-*\\):=\\(\\s-*\\)")
      (modes quote (sql-mode))
      (group 1 2)
+     (case-fold . t)
+     (repeat . t))
+    ;; lineup a variable declaration with an assignment
+    (sql-assign-lineup-2
+     (regexp . "^\\s-*\\S-+\\(\\s-+\\)\\S-+\\(\\s-*\\):=\\(\\s-*\\)")
+     (modes quote (sql-mode))
+     (group 1 2 3)
      (case-fold . t)
      (repeat . t))
     ;; Line up the two sides of in / out / in out parameter
@@ -1823,7 +1830,7 @@ determine how to indent each type of syntactic element."
      (repeat . t))
     ;; Line up the two sides of an equal sign in an update expression
     (sql-equals
-     (regexp . "\\(\\s-*[^:]\\)=\\([^>]\\s-*\\)")
+     (regexp . "[^:]\\(\\s-*\\)=\\(\\s-*\\)[^>]")
      (modes quote (sql-mode))
      (group 1 2)
      (case-fold . t)
