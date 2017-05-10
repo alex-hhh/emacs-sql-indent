@@ -1709,9 +1709,11 @@ BASE-INDENTATION.
 If this rule is added to `select-table-continuation' indentation,
 it will indent lines starting with JOIN keywords to line up with
 the FROM keyword."
-  (if (looking-at "\\b\\(\\(inner\\|outer\\|cross\\)\\s-+\\)?join\\b")
-      (sqlind-lineup-to-anchor syntax base-indentation)
-    base-indentation))
+  (save-excursion
+    (back-to-indentation)
+    (if (looking-at "\\b\\(\\(inner\\|outer\\|cross\\)\\s-+\\)?join\\b")
+        (sqlind-lineup-to-anchor syntax base-indentation)
+      base-indentation)))
 
 (defun sqlind-lineup-open-paren-to-anchor (syntax base-indentation)
   "Align an open paranthesis with the anchor point of SYNTAX.
