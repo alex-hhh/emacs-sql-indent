@@ -1901,7 +1901,7 @@ column aliases in select statements."
         (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
         (setq align-mode-rules-list sqlind-align-rules))
     (progn
-      (setq indent-line-function 'indent-relative)
+      (setq indent-line-function (default-value 'indent-line-function))
       (define-key sql-mode-map [remap beginning-of-defun] 'sql-beginning-of-statement)
       (setq align-mode-rules-list nil))))
 
