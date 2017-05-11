@@ -23,17 +23,40 @@
 
 ;;; Commentary:
 ;;
-;; Add suport for smart indentation when editing SQL files.  It is intended to
-;; work as an "add on" to the existing sql-mode. This file defines the
-;; `sqlind-indent-line' function that is suitable as a value for
-;; `indent-line-function'.
+;; Add suport for smart indentation when editing SQL files.  The function
+;; defines `sqlind-minor-mode' which is intended to work as an "add on" to the
+;; existing `sql-mode'
 ;;
-;; To use it, install the package, than add the following to your ~/.emacs.el:
+;; To use this package, install it first, than add the following to your
+;; ~/.emacs.el:
 ;;
-;; (eval-after-load "sql" '(progn (add-hook 'sql-mode-hook 'sqlind-setup)))
+;; (add-hook 'sql-mode-hook 'sqlind-minor-mode)
 ;;
-;; To adjust the indentation, see `sqlind-basic-offset' and
-;; `sqlind-indentation-offsets-alist' variables.
+;; You can also toggle syntactic indentation ON and OFF in a SQL buffer, by
+;; typing 'M-x sqlind-minor-mode RET'
+;;
+;; This file defines the `sqlind-indent-line' function that is suitable as a
+;; value for `indent-line-function'.
+;;
+;; You can define your own indenation style by defining a new value for
+;; `sqlind-indentation-offsets-alist'.
+;;
+;; (defvar my-sql-indentation-offsets-alist
+;;      `((select-clause 0)
+;;        (insert-clause 0)
+;;        (delete-clause 0)
+;;        (update-clause 0)
+;;        ,@sqlind-default-indentation-offsets-alist))
+;; (add-hook 'sqlind-minor-mode-hook
+;;           (lambda ()
+;;              (setq sqlind-indentation-offsets-alist
+;;                    my-sql-indentation-offsets-alist))
+;;
+;; For more information, see the doc strings for:
+;;
+;; * `sqlind-basic-offset'
+;; * `sqlind-default-indentation-offsets-alist'
+;; * `sqlind-indentation-syntax-symbols'
 
 ;;; Code:
 
@@ -1857,7 +1880,36 @@ See also `align' and `align-rules-list'")
 ;;;; sqlind-setup
 
 ;;;###autoload
+(define-minor-mode sqlind-minor-mode
+    "Toggle SQL syntactic indentation on or off.
+With syntactic indentation, hitting TAB on a line in a SQL buffer
+will indent the line according to the syntactic context of the
+SQL statement being edited.
+
+A set of alignment rules are also enabled with this minor mode.
+Selecting a region of text and typing `M-x align RET` will align
+the statements.  This can be used, for example, to align the 'as'
+column aliases in select statements."
+  :lighter "sqlind"
+  :group 'sqlind
+  :global nil
+  :init-value nil
+  (make-local-variable 'indent-line-function)
+  (if sqlind-minor-mode
+      (progn
+        (setq indent-line-function 'sqlind-indent-line)
+        (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
+        (setq align-mode-rules-list sqlind-align-rules))
+    (progn
+      (setq indent-line-function 'indent-relative)
+      (define-key sql-mode-map [remap beginning-of-defun] 'sql-beginning-of-statement)
+      (setq align-mode-rules-list nil))))
+
+;;;###autoload
 (defun sqlind-setup ()
+  "Enable SQL syntactic indentation unconditionally.
+This function is deprecated, consider using `sqlind-minor-mode'
+instead."
   (set (make-local-variable 'indent-line-function) 'sqlind-indent-line)
   (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
   (setq align-mode-rules-list sqlind-align-rules))
