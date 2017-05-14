@@ -237,24 +237,25 @@ But don't go before LIMIT."
         (when (re-search-backward
                ";\\|\\b\\(begin\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
                limit 'noerror)
-          (let ((candidate-pos (match-end 0)))
-            (cond ((looking-at ")")
-                   ;; Skip parenthesis expressions, we don't want to find one
-                   ;; of the keywords inside one of them and think this is a
-                   ;; statement start.
-                   (progn (forward-char 1) (forward-sexp -1)))
-                  ((looking-at "\\b\\(then\\|else\\)\\b")
-                   ;; then and else start statements when they are inside
-                   ;; blocks, not expressions.
-                   (sqlind-backward-syntactic-ws)
-                   (when (looking-at ";")
-                     ;; Statement begins after the keyword
-                     (throw 'done candidate-pos)))
-                  ((looking-at "\\b\\(if\\|elsif\\)\\b")
-                   ;; statement begins at the start of the keyword
-                   (throw 'done (point)))
-                  ((not (sqlind-in-comment-or-string (point)))
-                   (throw 'done candidate-pos)))))))))
+          (unless (sqlind-in-comment-or-string (point))
+            (let ((candidate-pos (match-end 0)))
+              (cond ((looking-at ")")
+                     ;; Skip parenthesis expressions, we don't want to find one
+                     ;; of the keywords inside one of them and think this is a
+                     ;; statement start.
+                     (progn (forward-char 1) (forward-sexp -1)))
+                    ((looking-at "\\b\\(then\\|else\\)\\b")
+                     ;; then and else start statements when they are inside
+                     ;; blocks, not expressions.
+                     (sqlind-backward-syntactic-ws)
+                     (when (looking-at ";")
+                       ;; Statement begins after the keyword
+                       (throw 'done candidate-pos)))
+                    ((looking-at "\\b\\(if\\|elsif\\)\\b")
+                     ;; statement begins at the start of the keyword
+                     (throw 'done (point)))
+                    ((not (sqlind-in-comment-or-string (point)))
+                     (throw 'done candidate-pos))))))))))
 
 (defun sqlind-beginning-of-statement ()
   "Move point to the beginning of the current statement."
