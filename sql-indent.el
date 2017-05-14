@@ -61,6 +61,7 @@
 ;;; Code:
 
 (require 'sql)
+(require 'align)
 (eval-when-compile (require 'cc-defs))  ; for c-point
 
 ;;;; General setup
@@ -1427,7 +1428,7 @@ clause (select, from, where, etc) in which the current point is.
     (select-join-condition          ++)
     (select-table                   sqlind-indent-select-table)
     (select-table-continuation      sqlind-indent-select-table +)
-    (in-select-clause               sqlind-lineup-to-clause-end)
+    (in-select-clause               sqlind-lineup-to-clause-end sqlind-adjust-and-or)
     (insert-clause                  sqlind-right-justify-clause)
     (in-insert-clause               sqlind-lineup-to-clause-end)
     (delete-clause                  sqlind-right-justify-clause)
@@ -1672,34 +1673,33 @@ indentation so that:
 If the clause is on a line by itself, the current line is
 indented by `sqlind-basic-offset', otherwise the current line is
 indented so that it starts in next column from where the clause
-keyword ends.
+keyword ends."
+  (destructuring-bind ((_sym clause) . anchor) (car syntax)
+    (save-excursion
+      (goto-char anchor)
+      (forward-char (1+ (length clause)))
+      (skip-syntax-forward " ")
+      (if (or (looking-at sqlind-comment-start-skip)
+              (looking-at "$"))
+          ;; if the clause is on a line by itself, indent this line with a
+          ;; sqlind-basic-offset
+          (+ base-indentation sqlind-basic-offset)
+        ;; otherwise, align to the end of the clause, with a few exceptions
+        (current-column)))))
 
-An exception is made for a 'where' clause: if the current line
-starts with an 'and' or an 'or' the line is indented so that the
-and/or is right justified with the 'where' clause."
-  (let ((origin (point)))
-    (destructuring-bind ((_sym clause) . anchor) (car syntax)
-      (save-excursion
-	(goto-char anchor)
-	(forward-char (1+ (length clause)))
-	(skip-syntax-forward " ")
-	(if (or (looking-at sqlind-comment-start-skip)
-		(looking-at "$"))
-	    ;; if the clause is on a line by itself, indent this line
-	    ;; with a sqlind-basic-offset
-	    (+ base-indentation sqlind-basic-offset)
-	    ;; otherwise, align to the end of the clause, with a few
-	    ;; exceptions
-	    (let ((indentation (current-column)))
-	      (goto-char origin)
-	      (back-to-indentation)
-	      ;; when the line starts with an 'and' or an 'or', line
-	      ;; it up so that the logic operator sits right under the
-	      ;; where clause
-	      (when (and (equal clause "where")
-			 (looking-at "and\\|or"))
-		(decf indentation (1+ (- (match-end 0) (match-beginning 0)))))
-	      indentation))))))
+(defun sqlind-adjust-and-or (syntax base-indentation)
+  "Align an AND or OR operator with the end of the WHERE clause.
+If this rule is added to the 'in-select-clause syntax after the
+`sqlind-lineup-to-clause-end' rule, it will adjust lines starting
+with AND or OR to be aligned so they sit under the WHERE clause."
+  (save-excursion
+    (back-to-indentation)
+    (destructuring-bind ((sym clause) . anchor) (car syntax)
+      (if (and (eq sym 'in-select-clause)
+               (equal clause "where")
+               (looking-at "and\\|or"))
+          (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
+        base-indentation))))
 
 (defun sqlind-right-justify-clause (syntax base-indentation)
   "Return an indentation which right-aligns the first word at

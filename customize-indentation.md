@@ -26,9 +26,9 @@ them up in your init.el file before loading the package.  For example:
         (delete-clause 0)
         (update-clause 0)
         ,@sqlind-default-indentation-offsets-alist))
-        
-    (add-hook 'sql-mode-hook 
-        (lambda () 
+
+    (add-hook 'sql-mode-hook
+        (lambda ()
            (setq sqlind-indentation-offsets-alist
                my-sql-indentation-offsets-alist)))
 
@@ -100,34 +100,55 @@ The following functions are available as part of the package:
 
 * `sqlind-use-previous-line-indentation` -- discards the current offset and
   returns the indentation column of the previous line
-  
+
 * `sqlind-lineup-to-anchor` -- discards the current offset and returns the
   column of the anchor point, which may be different than the indentation
   column
-  
+
 * `sqlind-lineup-open-paren-to-anchor` -- if the line starts with an open
   paren, discard the current offset and return the column of the anchor point.
-  
+
 * `sqlind-lineup-close-paren-to-open` -- if the line starts with a close
   paren, discard the current offset and return the column of the corresponding
   open paren.
-  
+
 * `sqlind-adjust-comma` -- if the line starts with a comma, adjust the current
   offset so that the line is indented to the first word character.  For
   example, if added to a 'select-column' syntax indentation rule, it will
   indent as follows:
-  
+
 ```sql
 select col1
    ,   col2 -- align "col2" to "col1"
 from my_table;
 ```
 
+* `sqlind-adjust-and-or` -- line up AND and OR logic operators with the end of
+  the where clause.  This rule needs to be added to the in-select-clause
+  syntax, after the `sqlind-lineup-to-clause-end`.  For example, the following
+  setup:
+
+```elisp
+(defvar my-sql-indentation-offsets-alist
+  `((in-select-clause   sqlind-lineup-to-clause-end
+                        sqlind-adjust-and-or)
+    ,@sqlind-default-indentation-offsets-alist))
+```
+
+Will indent SQL like this:
+
+```sql
+select *
+  from table
+ where a = b
+   and c = d; -- AND clause sits under the where clause
+```
+
 * `sqlind-lineup-into-nested-statement` -- discard the current offset and
   return the column of the first word inside a nested statement.  This rule
   makes sense only for 'nested-statement-continuation' syntax indentation
   rule, it will indent as follows:
-  
+
 ```sql
 (    a,
      b  -- b is aligned with a
@@ -296,4 +317,3 @@ clause (select, from, where, etc) in which the current point is.
 
 * `(in-update-clause CLAUSE)` -- line is inside an update CLAUSE, which can be
   "update", "set" or "where"
-
