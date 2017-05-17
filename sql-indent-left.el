@@ -52,105 +52,113 @@
 
 (require 'sql-indent)
 
-(defun sqlind-adjust-operator-left (_syntax base-indentation)
-  "Adjust the indentation for operators in select clauses.
-
-Select columns are lined up to the operands, not the operators.
-For example.
-
-    select col1, col2
-              || col3 as composed_column,
-           col4
-        || col5 as composed_column2
-    from   my_table
-    where  cond1 = 1
-    and    cond2 = 2;
-
-This is an indentation adjuster and needs to be added to the
-`sqlind-indentation-offsets-alist`"
-  (save-excursion
-    (back-to-indentation)
-    ;; If there are non-word constituents at the beginning if the line,
-    ;; consider them an operator and line up the line to the first word of the
-    ;; line, not the operator
-    (cond ((looking-at "\\W+")
-	   (let ((ofs (length (match-string 0))))
-	     (forward-line -1)
-	     (end-of-line)
-	     (sqlind-backward-syntactic-ws)
-	     (forward-sexp -1)
-	     (- (current-column) ofs)))
-	  ('t base-indentation))))
-
-(defun sqlind-adjust-operator-right (_syntax base-indentation)
-  "Adjust the indentation for operators in select clauses.
-
-Select columns are lined up to the operands, not the operators.
-For example.
-
-  select col1, col2
-            || col3 as composed_column,
-         col4
-      || col5 as composed_column2
-    from my_table
-   where cond1 = 1
-     and cond2 = 2;
-
-This is an indentation adjuster and needs to be added to the
-`sqlind-indentation-offsets-alist`"
-  (save-excursion
-    (back-to-indentation)
-    ;; If there are non-word constituents at the beginning if the line,
-    ;; consider them an operator and line up the line to the first word of the
-    ;; line, not the operator
-    (cond ((looking-at "\\W+")
-	   (let ((ofs (length (match-string 0))))
-	     (forward-line -1)
-	     (end-of-line)
-	     (sqlind-backward-syntactic-ws)
-	     (forward-sexp -1)
-	     (- (current-column) ofs)))
-	  ((looking-at "\\(?:and\\|or\\|not\\)")
-	   (let ((ofs (length (match-string 0))))
-	     (+ base-indentation (- 5 ofs))))
-	  ('t base-indentation))))
-
-(defun sqlind-lone-semicolon (syntax base-indentation)
-  "Indent a lone semicolon with the statement start.  For example:
-
-    select col
-    from my_table
-    ;
-
-This is an indentation adjuster and needs to be added to the
-`sqlind-indentation-offsets-alist`"
-  (save-excursion
-    (back-to-indentation)
-    (if (looking-at ";")
-        (sqlind-use-anchor-indentation syntax base-indentation)
-      base-indentation)))
 
 (defvar sqlind-indentation-right-offsets-alist
   `((select-column-continuation sqlind-indent-select-column
-                                sqlind-adjust-operator-left
+                                sqlind-adjust-operator
                                 sqlind-lone-semicolon)
     (in-select-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-right
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-right
 		      sqlind-lone-semicolon)
     (in-delete-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-right
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-right
 		      sqlind-lone-semicolon)
     (in-insert-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-right
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-right
 		      sqlind-lone-semicolon)
     (in-update-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-right
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-right
 		      sqlind-lone-semicolon)
     ;; mandatory 
     (select-table-continuation sqlind-indent-select-table +
                                sqlind-lone-semicolon)
     ;; rest picked up from the original indentation offsets
-    ,@sqlind-default-indentation-offsets-alist))
+    ,@sqlind-default-indentation-offsets-alist)
+  "Align sql code like this :
+
+clear columns
+set linesize 2500
+set trimout on trimspool on
+
+select atc.column_name,
+       atc.data_type,
+       data_length,
+       data_precision,
+       nullable,
+       data_scale,
+       nvl(substr(comments, 1, 100), atc.column_name) comments
+  from   all_tab_columns atc,
+         all_col_comments acc
+ where  atc.owner       = acc.owner
+    and    atc.table_name  = acc.table_name
+    and    atc.column_name = acc.column_name
+    and    atc.owner       = user
+    and    atc.table_name  = 'MY_TABLE'
+    and    atc.column_name = p_column_name
+    and    not exists (select 1
+                         from   all_tab_columns atc1,
+                                all_col_comments acc1
+                        where  atc1.owner       = acc1.owner
+                           and    atc1.table_name  = acc1.table_name
+                           and    atc1.column_name = acc1.column_name
+                           and    atc1.owner       = atc.owner
+                           and    atc1.table_name  = atc.table_name
+                           and    acc1.column_name = acc.column_name)
+ ;
+
+delete from my_table mt
+ where col_1 = v_col1
+   and  (   col_2 = v_col2
+         or col_3 = v_col3)
+   and   col_42 = '42'
+ ;
+
+update my_table
+   set    col1_has_a_long_name = value1,
+          col2_is_short        = value2
+ where cond1 is not null
+   and  (   col_2 = v_col2
+         or col_3 = v_col3)
+   and   col_42 = '42'
+ ;
+
+insert into xyzxx
+          ( aaa, xxx, bbb, ccc,
+          ddd, eee, fff, ggg,
+          hhh )
+select aaa,
+       xxx,
+       max (m.b1) as bbb,
+       min (m.b1) as ccc,
+       coalesce (max (n.c2), 0)  as ddd,
+       coalesce (min (n.c2), 0)  as eee,
+       max (m.b1) over ( partition by c2
+                        order by aaa desc ) as fff,
+       min (m.b1) over ( partition by c2
+                        order by aaa desc ) as ggg,
+       avg (n.c2) as hhh
+  from  (select * from (select aaa,
+                               jjj + kkk  as b1,
+                               row_number () over ( partition by qqq
+                                                   order by rrr,
+                                                   sss ) as rn
+                          from mno)
+          where rn = 1) m
+          inner join (select aaa,
+                             nnn + ooo as c2
+                        from   pqr) n
+          using (aaa),
+ group by aaa,
+          xxx
+ order by xxx desc,
+          aaa asc
+ ;
+
+")
 
 (defvar sqlind-indentation-left-offsets-alist
   `((select-clause 0)
@@ -160,29 +168,131 @@ This is an indentation adjuster and needs to be added to the
     (case-clause-item-cont 0)
     (package +)
     (package-body +)
+    (nested-statement-continuation  +)
     (select-column-continuation sqlind-indent-select-column
-                                sqlind-adjust-operator-left
+                                sqlind-adjust-operator
                                 sqlind-lone-semicolon)
     (in-select-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-left
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-left
                       sqlind-lone-semicolon)
     (in-delete-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-left
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-left
                       sqlind-lone-semicolon)
     (in-insert-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-left
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-left
                       sqlind-lone-semicolon)
     (in-update-clause sqlind-lineup-to-clause-end
-                      sqlind-adjust-operator-left
+                      sqlind-adjust-operator
+		      sqlind-adjust-and-or-left
                       sqlind-lone-semicolon)
     (select-table-continuation sqlind-indent-select-table +
                                sqlind-lone-semicolon)
     ;; rest picked up from the original indentation offsets
-    ,@sqlind-default-indentation-offsets-alist))
+    ,@sqlind-default-indentation-offsets-alist)
+  "Align sql code like this :
 
-;; (add-hook 'sql-mode-hook
-;;           (lambda ()
-;;             (setq sqlind-indentation-offsets-alist sqlind-indentation-left-offsets-alist)))
+clear columns
+set linesize 2500
+set trimout on trimspool on
+
+select atc.column_name,
+       atc.data_type,
+       data_length,
+       data_precision,
+       nullable,
+       data_scale,
+       nvl(substr(comments, 1, 100), atc.column_name) comments
+from   all_tab_columns atc,
+       all_col_comments acc
+where  atc.owner       = acc.owner
+and    atc.table_name  = acc.table_name
+and    atc.column_name = acc.column_name
+and    atc.owner       = user
+and    atc.table_name  = 'MY_TABLE'
+and    atc.column_name = p_column_name
+and    not exists (select 1
+                   from   all_tab_columns atc1,
+                          all_col_comments acc1
+                   where  atc1.owner       = acc1.owner
+                   and    atc1.table_name  = acc1.table_name
+                   and    atc1.column_name = acc1.column_name
+                   and    atc1.owner       = atc.owner
+                   and    atc1.table_name  = atc.table_name
+                   and    acc1.column_name = acc.column_name)
+;
+
+delete from my_table mt
+where col_1 = v_col1
+and  (   col_2 = v_col2
+       or col_3 = v_col3)
+and   col_42 = '42'
+;
+
+update my_table
+set    col1_has_a_long_name = value1,
+       col2_is_short        = value2
+where cond1 is not null
+and  (   col_2 = v_col2
+       or col_3 = v_col3)
+and   col_42 = '42'
+;
+
+insert into xyzxx
+          ( aaa, xxx, bbb, ccc,
+            ddd, eee, fff, ggg,
+            hhh )
+select aaa,
+       xxx,
+       max (m.b1) as bbb,
+       min (m.b1) as ccc,
+       coalesce (max (n.c2), 0)  as ddd,
+       coalesce (min (n.c2), 0)  as eee,
+       max (m.b1) over ( partition by c2
+                         order by aaa desc ) as fff,
+       min (m.b1) over ( partition by c2
+                         order by aaa desc ) as ggg,
+       avg (n.c2) as hhh
+from  (select * from (select aaa,
+                             jjj + kkk  as b1,
+                             row_number () over ( partition by qqq
+                                                  order by rrr,
+                                                  sss ) as rn
+                      from mno)
+       where rn = 1) m
+        inner join (select aaa,
+                           nnn + ooo as c2
+                    from   pqr) n
+        using (aaa),
+group by aaa,
+         xxx
+order by xxx desc,
+         aaa asc
+;
+
+")
+
+;;;###autoload
+(defun sqlind-setup-style-left ()
+  "Define an sql-indentation style where keywords are left aligned."
+  (interactive)
+  (setq sqlind-indentation-offsets-alist sqlind-indentation-left-offsets-alist))
+
+;;;###autoload
+(defun sqlind-setup-style-right ()
+  "Define an sql-indentation style where keywords are right aligned."
+  (interactive)
+  (setq sqlind-indentation-offsets-alist sqlind-indentation-right-offsets-alist))
+
+
+;;;###autoload
+(defun sqlind-setup-style-default ()
+  "Define an sql-indentation style where keywords are right aligned."
+  (interactive)
+  (setq sqlind-indentation-offsets-alist sqlind-default-indentation-offsets-alist))
+
 
 (provide 'sql-indent-left)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
