@@ -1705,28 +1705,28 @@ keyword ends."
         (current-column)))))
 
 (defun sqlind-adjust-and-or-right (syntax base-indentation)
-  "Align an AND or OR operator with the end of the WHERE clause.
+  "Align an AND, OR or NOT operator with the end of the WHERE clause.
 If this rule is added to the 'in-select-clause syntax after the
 `sqlind-lineup-to-clause-end' rule, it will adjust lines starting
-with AND or OR to be aligned so they sit under the WHERE clause."
+with AND, OR or NOT to be aligned so they sit under the WHERE clause."
   (save-excursion
     (back-to-indentation)
     (destructuring-bind ((sym clause) . anchor) (car syntax)
       (if (and (equal clause "where")
-               (looking-at "and\\|or"))
+               (looking-at "and\\|or\\|not"))
           (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
         base-indentation))))
 
 (defun sqlind-adjust-and-or-left (syntax base-indentation)
-  "Align an AND or OR operator with the start of the WHERE clause.
+  "Align an AND, OR or NOT operator with the start of the WHERE clause.
 If this rule is added to the 'in-select-clause syntax after the
 `sqlind-lineup-to-clause-end' rule, it will adjust lines starting
-with AND or OR to be aligned so they sit left under the WHERE clause."
+with AND, OR or NOT to be aligned so they sit left under the WHERE clause."
   (save-excursion
     (back-to-indentation)
     (destructuring-bind ((sym clause) . anchor) (car syntax)
       (if (and (equal clause "where")
-               (looking-at "and\\|or"))
+               (looking-at "and\\|or\\|not"))
           (progn (goto-char anchor) (current-column))
         base-indentation))))
 
