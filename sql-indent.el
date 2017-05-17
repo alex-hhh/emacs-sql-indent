@@ -1674,7 +1674,6 @@ indentation so that:
 If the clause is on a line by itself, the current line is
 indented by `sqlind-basic-offset', otherwise the current line is
 indented so that it starts in next column from where the clause
-<<<<<<< HEAD
 keyword ends."
   (destructuring-bind ((_sym clause) . anchor) (car syntax)
     (save-excursion
@@ -1702,36 +1701,6 @@ with AND or OR to be aligned so they sit under the WHERE clause."
                (looking-at "and\\|or"))
           (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
         base-indentation))))
-=======
-keyword ends.
-
-An exception is made for a 'where' clause: if the current line
-starts with an 'and' or an 'or' the line is indented so that the
-and/or is right justified with the 'where' clause."
-  (let ((origin (point)))
-    (destructuring-bind ((_sym clause) . anchor) (car syntax)
-      (save-excursion
-	(goto-char anchor)
-	(forward-char (1+ (length clause)))
-	(skip-syntax-forward " ")
-	(if (or (looking-at sqlind-comment-start-skip)
-		(looking-at "$"))
-	    ;; if the clause is on a line by itself, indent this line
-	    ;; with a sqlind-basic-offset
-	    (+ base-indentation sqlind-basic-offset)
-	    ;; otherwise, align to the end of the clause, with a few
-	    ;; exceptions
-	    (let ((indentation (current-column)))
-	      (goto-char origin)
-	      (back-to-indentation)
-	      ;; when the line starts with an 'and' or an 'or', line
-	      ;; it up so that the logic operator sits left under the
-	      ;; where clause
-	      (when (and (equal clause "where")
-			 (looking-at "and\\|or"))
-		(setf indentation base-indentation))
-	      indentation))))))
->>>>>>> Start workgin on aligning keywords left or right.
 
 (defun sqlind-right-justify-clause (syntax base-indentation)
   "Return an indentation which right-aligns the first word at
@@ -1909,13 +1878,9 @@ To use it, select the region to be aligned and type
 
 See also `align' and `align-rules-list'")
 
-(provide 'sql-indent)
-
 ;;;; sqlind-setup
-(require 'sql-indent-left)
 
 ;;;###autoload
-<<<<<<< HEAD
 (define-minor-mode sqlind-minor-mode
     "Toggle SQL syntactic indentation on or off.
 With syntactic indentation, hitting TAB on a line in a SQL buffer
@@ -1946,19 +1911,9 @@ column aliases in select statements."
   "Enable SQL syntactic indentation unconditionally.
 This function is deprecated, consider using `sqlind-minor-mode'
 instead."
-=======
-(defun sqlind-setup (&optional direction)
->>>>>>> Start workgin on aligning keywords left or right.
   (set (make-local-variable 'indent-line-function) 'sqlind-indent-line)
   (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
-  (setq align-mode-rules-list sqlind-align-rules)
-  (if (eq direction 'left)
-      (setq sqlind-indentation-offsets-alist sqlind-indentation-left-offsets-alist)
-    (setq sqlind-indentation-offsets-alist sqlind-indentation-right-offsets-alist)))
-
-;; (add-hook 'sql-mode-hook
-;;           (lambda ()
-;;             (sqlind-setup 'left)))
+  (setq align-mode-rules-list sqlind-align-rules))
 
 (provide 'sql-indent)
 
