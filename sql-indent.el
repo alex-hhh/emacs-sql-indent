@@ -221,12 +221,28 @@ they are one-line only directives."
                 (ms sqlind-ms-directive)
                 (sqlite sqlind-sqlite-directive)
                 (oracle sqlind-sqlplus-directive)
-                (t nil))))
+                (t nil)))
+	  (directive-start)
+	  (match-start))
       (when rx
         (save-excursion
           (when (re-search-backward rx nil 'noerror)
-            (forward-line 1)
-            (point)))))))
+	    (setq match-start (match-beginning 0))
+	    (forward-line 1)
+	    (setq directive-start (point))
+	    (when (string-equal "set" (match-string 0))
+	      (let* ((update-start (or (re-search-backward "\\_<update\\_>" nil 'noerror)
+					 (1+ directive-start)))
+		       (update-end (or (re-search-forward ";" nil 'noerror)
+				       (1- directive-start))))
+		(when (and (<= update-start directive-start)
+			   (>= update-end directive-start))
+		  (goto-char match-start)
+		  (setq directive-start nil)
+		  (when (re-search-backward rx nil 'noerror)
+		    (forward-line 1)
+		    (setq directive-start (point)))))))))
+      directive-start)))
 
 (defun sqlind-beginning-of-statement-1 (limit)
   "Return the position of a block start, or nil.
@@ -811,7 +827,7 @@ See also `sqlind-beginning-of-block'"
 	    (throw 'finished
 	      (if (looking-at "select")
 		  (sqlind-syntax-in-select pos match-pos)
-		  (cons (list 'in-insert-clause clause) match-pos)))))))))
+		(cons (list 'in-insert-clause clause) match-pos)))))))))
 
 
 ;;;;; Determine the syntax inside a delete statement
@@ -1429,7 +1445,7 @@ clause (select, from, where, etc) in which the current point is.
     (select-join-condition          ++)
     (select-table                   sqlind-indent-select-table)
     (select-table-continuation      sqlind-indent-select-table +)
-    (in-select-clause               sqlind-lineup-to-clause-end sqlind-adjust-and-or)
+    (in-select-clause               sqlind-lineup-to-clause-end sqlind-adjust-and-or-right)
     (insert-clause                  sqlind-right-justify-clause)
     (in-insert-clause               sqlind-lineup-to-clause-end)
     (delete-clause                  sqlind-right-justify-clause)
@@ -1688,19 +1704,76 @@ keyword ends."
         ;; otherwise, align to the end of the clause, with a few exceptions
         (current-column)))))
 
-(defun sqlind-adjust-and-or (syntax base-indentation)
-  "Align an AND or OR operator with the end of the WHERE clause.
+(defun sqlind-adjust-and-or-right (syntax base-indentation)
+  "Align an AND, OR or NOT operator with the end of the WHERE clause.
 If this rule is added to the 'in-select-clause syntax after the
 `sqlind-lineup-to-clause-end' rule, it will adjust lines starting
-with AND or OR to be aligned so they sit under the WHERE clause."
+with AND, OR or NOT to be aligned so they sit under the WHERE clause."
   (save-excursion
     (back-to-indentation)
     (destructuring-bind ((sym clause) . anchor) (car syntax)
-      (if (and (eq sym 'in-select-clause)
-               (equal clause "where")
-               (looking-at "and\\|or"))
+      (if (and (equal clause "where")
+               (looking-at "and\\|or\\|not"))
           (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
         base-indentation))))
+
+(defun sqlind-adjust-and-or-left (syntax base-indentation)
+  "Align an AND, OR or NOT operator with the start of the WHERE clause.
+If this rule is added to the 'in-select-clause syntax after the
+`sqlind-lineup-to-clause-end' rule, it will adjust lines starting
+with AND, OR or NOT to be aligned so they sit left under the WHERE clause."
+  (save-excursion
+    (back-to-indentation)
+    (destructuring-bind ((sym clause) . anchor) (car syntax)
+      (if (and (equal clause "where")
+               (looking-at "and\\|or\\|not"))
+          (progn (goto-char anchor) (current-column))
+        base-indentation))))
+
+(defun sqlind-adjust-operator (_syntax base-indentation)
+  "Adjust the indentation for operators in select clauses.
+
+Select columns are lined up to the operands, not the operators.
+For example.
+
+    select col1, col2
+              || col3 as composed_column,
+           col4
+        || col5 as composed_column2
+    from   my_table
+    where  cond1 = 1
+    and    cond2 = 2;
+
+This is an indentation adjuster and needs to be added to the
+`sqlind-indentation-offsets-alist`"
+  (save-excursion
+    (back-to-indentation)
+    ;; If there are non-word constituents at the beginning if the line,
+    ;; consider them an operator and line up the line to the first word of the
+    ;; line, not the operator
+    (cond ((looking-at "\\W+")
+	   (let ((ofs (length (match-string 0))))
+	     (forward-line -1)
+	     (end-of-line)
+	     (sqlind-backward-syntactic-ws)
+	     (forward-sexp -1)
+	     (- (current-column) ofs)))
+	  ('t base-indentation))))
+
+(defun sqlind-lone-semicolon (syntax base-indentation)
+  "Indent a lone semicolon with the statement start.  For example:
+
+    select col
+    from my_table
+    ;
+
+This is an indentation adjuster and needs to be added to the
+`sqlind-indentation-offsets-alist`"
+  (save-excursion
+    (back-to-indentation)
+    (if (looking-at ";")
+        (sqlind-use-anchor-indentation syntax base-indentation)
+      base-indentation)))
 
 (defun sqlind-right-justify-clause (syntax base-indentation)
   "Return an indentation which right-aligns the first word at

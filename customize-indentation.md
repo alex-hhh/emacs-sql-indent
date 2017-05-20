@@ -112,6 +112,34 @@ The following functions are available as part of the package:
   paren, discard the current offset and return the column of the corresponding
   open paren.
 
+* `sqlind-lone-semicolon` -- Indent a lone semicolon with the statement start.
+
+* `sqlind-adjust-operator` -- Adjust the indentation for operators in
+  select clauses, it will
+  indent as follows:
+
+```sql
+    select col1, col2
+              || col3 as composed_column,
+           col4
+        || col5 as composed_column2
+    from   my_table
+    where  cond1 = 1
+    and    cond2 = 2;
+```
+
+* `sqlind-adjust-and-or-left` -- Align an AND, OR or NOT operator with
+the start of the WHERE clause.
+If this rule is added to the 'in-select-clause syntax after the
+`sqlind-lineup-to-clause-end' rule, it will adjust lines starting
+with AND, OR or NOT to be aligned so they sit left under the WHERE clause.
+
+* `sqlind-adjust-and-or-right` -- Align an AND, OR or NOT operator
+  with the end of the WHERE clause. If this rule is added to the
+  'in-select-clause syntax after the `sqlind-lineup-to-clause-end' rule,
+  it will adjust lines starting with AND, OR or NOT to be aligned so
+  they sit under the WHERE clause.
+
 * `sqlind-adjust-comma` -- if the line starts with a comma, adjust the current
   offset so that the line is indented to the first word character.  For
   example, if added to a 'select-column' syntax indentation rule, it will
