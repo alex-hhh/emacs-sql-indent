@@ -136,10 +136,11 @@ whitespace, or at the beginning of the buffer."
       (unless (eq (point) (point-min))
 	(forward-char -1))
       (let ((pps (syntax-ppss (point))))
-	(if (nth 4 pps)                 ; inside a comment?
-	    (goto-char (nth 8 pps))     ; move to comment start than repeat
-	    (throw 'done (point))       ; done
-	    )))))
+	(cond
+	 ((or (nth 4 pps) (nth 3 pps))  ; inside a comment or a string ?
+	  (goto-char (nth 8 pps)))      ; move to start than repeat
+	 ('t (throw 'done (point))))    ; done
+	))))
 
 (defun sqlind-forward-syntactic-ws ()
   "Move point forward over whitespace and comments.
@@ -1737,11 +1738,13 @@ Select columns are lined up to the operands, not the operators.
 For example.
 
     select col1, col2
-              || col3 as composed_column,
+              || col3
+              || 'some text' as composed_column,
            col4
         || col5 as composed_column2
     from   my_table
-    where  cond1 = 1
+    where  cond1 = fct1
+                || 'another text'
     and    cond2 = 2;
 
 This is an indentation adjuster and needs to be added to the
@@ -1752,7 +1755,10 @@ This is an indentation adjuster and needs to be added to the
     ;; consider them an operator and line up the line to the first word of the
     ;; line, not the operator
     (cond ((looking-at "\\W+")
-	   (let ((ofs (length (match-string 0))))
+	   (let* ((operator (match-string 0))
+		  (ofs (length operator)))
+	     (when (string-match "'$" operator)
+	       (setq ofs (1- ofs)))
 	     (forward-line -1)
 	     (end-of-line)
 	     (sqlind-backward-syntactic-ws)
