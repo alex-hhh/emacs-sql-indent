@@ -1729,6 +1729,13 @@ with AND, OR or NOT to be aligned so they sit left under the WHERE clause."
           (progn (goto-char anchor) (current-column))
         base-indentation))))
 
+(defconst sqlind-operator-regexp
+  (concat (regexp-opt '("||" "*" "/" "%" "+" "-" "<<" ">>" "&" "|"
+                        "<" "<=" ">" ">=" "=" "==" "!=" "<>")
+                      t)
+          "\\s-*")
+  "Regexp to match a SQL expression operator.")
+
 (defun sqlind-adjust-operator (_syntax base-indentation)
   "Adjust the indentation for operators in select clauses.
 
@@ -1750,13 +1757,17 @@ This is an indentation adjuster and needs to be added to the
     ;; If there are non-word constituents at the beginning if the line,
     ;; consider them an operator and line up the line to the first word of the
     ;; line, not the operator
-    (cond ((looking-at "\\W+")
+    (cond ((looking-at sqlind-operator-regexp)
 	   (let ((ofs (length (match-string 0))))
 	     (forward-line -1)
 	     (end-of-line)
 	     (sqlind-backward-syntactic-ws)
+             ;; Previous function leaves us on the first non-white-space
+             ;; character.  This might be a string terminator (') char, move
+             ;; the cursor one to the left, so 'forward-sexp' works correctly.
+             (ignore-errors (forward-char 1))
 	     (forward-sexp -1)
-	     (- (current-column) ofs)))
+	     (max 0 (- (current-column) ofs))))
 	  ('t base-indentation))))
 
 (defun sqlind-lone-semicolon (syntax base-indentation)
