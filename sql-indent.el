@@ -188,27 +188,22 @@ a strinf or comment."
 
 (defconst sqlind-sqlplus-directive
   (concat "^"
-          ;; NOTE: do not include "SET" here, it is handled specially by the
-          ;; `sqlind-begining-of-directive' function.
+          ;; SET is handled in a special way, to avoid conflicts with the SET
+          ;; keyworkd in updated clauses
+          "\\(set\\s-+\\w+\\(\\s-+[^=].*\\)?$\\)\\|\\("
 	  (regexp-opt '("column" "rem" "define" "spool" "prompt"
                         "clear" "compute" "whenever" "@" "@@" "start")
                       t)
-	  "\\b")
+	  "\\)\\b")
   "Match an SQL*Plus directive at the beginning of a line.
 A directive always stands on a line by itself -- we use that to
-determine the statement start in SQL*Plus scripts.
-
-NOTE: we don't allow spaces at the beginning of line, as that
-would conflict with the 'set' keyword in an update statement.")
+determine the statement start in SQL*Plus scripts.")
 
 (defconst sqlind-sqlite-directive
   "^[.].*?\\>"
   "Match an SQLite directive at the beginning of a line.
 A directive always stands on a line by itself -- we use that to
-determine the statement start in SQLite scripts.
-
-NOTE: we don't allow spaces at the beginning of line, as that
-would conflict with the 'set' keyword in an update statement.")
+determine the statement start in SQLite scripts.")
 
 (defconst sqlind-ms-directive
   (concat "^"
@@ -224,23 +219,12 @@ they are one-line only directives."
               (ms sqlind-ms-directive)
               (sqlite sqlind-sqlite-directive)
               (oracle sqlind-sqlplus-directive)
-              (t nil)))
-        (pos (point)))
-    (save-excursion
-      (cond ((and rx (re-search-backward rx nil 'noerror))
-             (forward-line 1)
-             (point))
-            ((eq sql-product 'oracle)
-             ;; Oracle uses the "SET" keyword as a directive, which conflicts
-             ;; with the "SET" keyword used inside the UPDATE statement.  The
-             ;; full syntax is "SET Keyword Value" or "SET Keyword", which is
-             ;; different than "set col = value" used in updates, so we look
-             ;; for the former.
-             (goto-char pos)
-             (when (re-search-backward "^set\\s-+\\w+\\(\\s-+[^=].*\\)?$"
-                                       nil 'noerror)
-               (forward-line 1)
-               (point)))))))
+              (t nil))))
+    (when rx
+      (save-excursion
+        (when (re-search-backward rx nil 'noerror))
+        (forward-line 1)
+        (point)))))
 
 (defun sqlind-beginning-of-statement-1 (limit)
   "Return the position of a block start, or nil.
