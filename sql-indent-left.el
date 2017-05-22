@@ -59,19 +59,19 @@
                                 sqlind-lone-semicolon)
     (in-select-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-right
+		      sqlind-right-justify-logical-operator
 		      sqlind-lone-semicolon)
     (in-delete-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-right
+		      sqlind-right-justify-logical-operator
 		      sqlind-lone-semicolon)
     (in-insert-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-right
+		      sqlind-right-justify-logical-operator
 		      sqlind-lone-semicolon)
     (in-update-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-right
+		      sqlind-right-justify-logical-operator
 		      sqlind-lone-semicolon)
     ;; mandatory 
     (select-table-continuation sqlind-indent-select-table +
@@ -174,19 +174,19 @@ select aaa,
                                 sqlind-lone-semicolon)
     (in-select-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-left
+		      sqlind-left-justify-logical-operator
                       sqlind-lone-semicolon)
     (in-delete-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-left
+		      sqlind-left-justify-logical-operator
                       sqlind-lone-semicolon)
     (in-insert-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-left
+		      sqlind-left-justify-logical-operator
                       sqlind-lone-semicolon)
     (in-update-clause sqlind-lineup-to-clause-end
                       sqlind-adjust-operator
-		      sqlind-adjust-and-or-left
+		      sqlind-left-justify-logical-operator
                       sqlind-lone-semicolon)
     (select-table-continuation sqlind-indent-select-table +
                                sqlind-lone-semicolon)

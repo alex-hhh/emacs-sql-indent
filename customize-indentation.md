@@ -128,17 +128,17 @@ The following functions are available as part of the package:
     and    cond2 = 2;
 ```
 
-* `sqlind-adjust-and-or-left` -- Align an AND, OR or NOT operator with
-the start of the WHERE clause.
-If this rule is added to the 'in-select-clause syntax after the
-`sqlind-lineup-to-clause-end' rule, it will adjust lines starting
-with AND, OR or NOT to be aligned so they sit left under the WHERE clause.
+* `sqlind-left-justify-logical-operator` -- Align an AND, OR or NOT operator
+  with the start of the WHERE clause.  If this rule is added to the
+  'in-select-clause syntax after the `sqlind-lineup-to-clause-end' rule, it
+  will adjust lines starting with AND, OR or NOT to be aligned so they sit
+  left under the WHERE clause.
 
-* `sqlind-adjust-and-or-right` -- Align an AND, OR or NOT operator
+* `sqlind-right-justify-logical-operator` -- Align an AND, OR or NOT operator
   with the end of the WHERE clause. If this rule is added to the
-  'in-select-clause syntax after the `sqlind-lineup-to-clause-end' rule,
-  it will adjust lines starting with AND, OR or NOT to be aligned so
-  they sit under the WHERE clause.
+  'in-select-clause syntax after the `sqlind-lineup-to-clause-end' rule, it
+  will adjust lines starting with AND, OR or NOT to be aligned so they sit
+  under the WHERE clause.
 
 * `sqlind-adjust-comma` -- if the line starts with a comma, adjust the current
   offset so that the line is indented to the first word character.  For

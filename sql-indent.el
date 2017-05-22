@@ -1443,7 +1443,8 @@ clause (select, from, where, etc) in which the current point is.
     (select-join-condition          ++)
     (select-table                   sqlind-indent-select-table)
     (select-table-continuation      sqlind-indent-select-table +)
-    (in-select-clause               sqlind-lineup-to-clause-end sqlind-adjust-and-or-right)
+    (in-select-clause               sqlind-lineup-to-clause-end
+                                    sqlind-right-justify-logical-operator)
     (insert-clause                  sqlind-right-justify-clause)
     (in-insert-clause               sqlind-lineup-to-clause-end)
     (delete-clause                  sqlind-right-justify-clause)
@@ -1702,7 +1703,7 @@ keyword ends."
         ;; otherwise, align to the end of the clause, with a few exceptions
         (current-column)))))
 
-(defun sqlind-adjust-and-or-right (syntax base-indentation)
+(defun sqlind-right-justify-logical-operator (syntax base-indentation)
   "Align an AND, OR or NOT operator with the end of the WHERE clause.
 If this rule is added to the 'in-select-clause syntax after the
 `sqlind-lineup-to-clause-end' rule, it will adjust lines starting
@@ -1715,7 +1716,7 @@ with AND, OR or NOT to be aligned so they sit under the WHERE clause."
           (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
         base-indentation))))
 
-(defun sqlind-adjust-and-or-left (syntax base-indentation)
+(defun sqlind-left-justify-logical-operator (syntax base-indentation)
   "Align an AND, OR or NOT operator with the start of the WHERE clause.
 If this rule is added to the 'in-select-clause syntax after the
 `sqlind-lineup-to-clause-end' rule, it will adjust lines starting
