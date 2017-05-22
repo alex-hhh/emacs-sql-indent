@@ -188,7 +188,11 @@ a strinf or comment."
 
 (defconst sqlind-sqlplus-directive
   (concat "^"
-	  (regexp-opt '("column" "set" "rem" "define" "spool" "prompt" "clear" "compute" "whenever" "@" "@@" "start") t)
+          ;; NOTE: do not include "SET" here, it is handled specially by the
+          ;; `sqlind-begining-of-directive' function.
+	  (regexp-opt '("column" "rem" "define" "spool" "prompt"
+                        "clear" "compute" "whenever" "@" "@@" "start")
+                      t)
 	  "\\b")
   "Match an SQL*Plus directive at the beginning of a line.
 A directive always stands on a line by itself -- we use that to
@@ -216,33 +220,27 @@ would conflict with the 'set' keyword in an update statement.")
   "Return the position of an SQL directive, or nil.
 We will never move past one of these in our scan.  We also assume
 they are one-line only directives."
-  (when (boundp 'sql-product)
-    (let ((rx (case sql-product
-                (ms sqlind-ms-directive)
-                (sqlite sqlind-sqlite-directive)
-                (oracle sqlind-sqlplus-directive)
-                (t nil)))
-	  (directive-start)
-	  (match-start))
-      (when rx
-        (save-excursion
-          (when (re-search-backward rx nil 'noerror)
-	    (setq match-start (match-beginning 0))
-	    (forward-line 1)
-	    (setq directive-start (point))
-	    (when (string-equal "set" (match-string 0))
-	      (let* ((update-start (or (re-search-backward "\\_<update\\_>" nil 'noerror)
-					 (1+ directive-start)))
-		       (update-end (or (re-search-forward ";" nil 'noerror)
-				       (1- directive-start))))
-		(when (and (<= update-start directive-start)
-			   (>= update-end directive-start))
-		  (goto-char match-start)
-		  (setq directive-start nil)
-		  (when (re-search-backward rx nil 'noerror)
-		    (forward-line 1)
-		    (setq directive-start (point)))))))))
-      directive-start)))
+  (let ((rx (case (and (boundp 'sql-product) sql-product)
+              (ms sqlind-ms-directive)
+              (sqlite sqlind-sqlite-directive)
+              (oracle sqlind-sqlplus-directive)
+              (t nil)))
+        (pos (point)))
+    (save-excursion
+      (cond ((and rx (re-search-backward rx nil 'noerror))
+             (forward-line 1)
+             (point))
+            ((eq sql-product 'oracle)
+             ;; Oracle uses the "SET" keyword as a directive, which conflicts
+             ;; with the "SET" keyword used inside the UPDATE statement.  The
+             ;; full syntax is "SET Keyword Value" or "SET Keyword", which is
+             ;; different than "set col = value" used in updates, so we look
+             ;; for the former.
+             (goto-char pos)
+             (when (re-search-backward "^set\\s-+\\w+\\(\\s-+[^=].*\\)?$"
+                                       nil 'noerror)
+               (forward-line 1)
+               (point)))))))
 
 (defun sqlind-beginning-of-statement-1 (limit)
   "Return the position of a block start, or nil.
