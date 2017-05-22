@@ -1709,7 +1709,7 @@ If this rule is added to the 'in-select-clause syntax after the
 with AND, OR or NOT to be aligned so they sit under the WHERE clause."
   (save-excursion
     (back-to-indentation)
-    (destructuring-bind ((sym clause) . anchor) (car syntax)
+    (destructuring-bind ((_sym clause) . anchor) (car syntax)
       (if (and (equal clause "where")
                (looking-at "and\\|or\\|not"))
           (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
@@ -1722,7 +1722,7 @@ If this rule is added to the 'in-select-clause syntax after the
 with AND, OR or NOT to be aligned so they sit left under the WHERE clause."
   (save-excursion
     (back-to-indentation)
-    (destructuring-bind ((sym clause) . anchor) (car syntax)
+    (destructuring-bind ((_sym clause) . anchor) (car syntax)
       (if (and (equal clause "where")
                (looking-at "and\\|or\\|not"))
           (progn (goto-char anchor) (current-column))
