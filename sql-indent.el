@@ -187,10 +187,9 @@ a strinf or comment."
 ;;;;; Find the beginning of the current statement
 
 (defconst sqlind-sqlplus-directive
-  (concat "^"
-          ;; SET is handled in a special way, to avoid conflicts with the SET
+  (concat ;; SET is handled in a special way, to avoid conflicts with the SET
           ;; keyworkd in updated clauses
-          "\\(set\\s-+\\w+\\(\\s-+[^=].*\\)?$\\)\\|\\("
+          "\\(^set\\s-+\\w+\\(\\s-+[^=].*\\)?$\\)\\|\\(^"
 	  (regexp-opt '("column" "rem" "define" "spool" "prompt"
                         "clear" "compute" "whenever" "@" "@@" "start")
                       t)
@@ -222,9 +221,9 @@ they are one-line only directives."
               (t nil))))
     (when rx
       (save-excursion
-        (when (re-search-backward rx nil 'noerror))
-        (forward-line 1)
-        (point)))))
+        (when (re-search-backward rx nil 'noerror)
+          (forward-line 1)
+          (point))))))
 
 (defun sqlind-beginning-of-statement-1 (limit)
   "Return the position of a block start, or nil.
