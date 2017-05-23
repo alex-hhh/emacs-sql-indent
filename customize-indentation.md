@@ -9,32 +9,54 @@ often, since it deals with the structure of the SQL code, however, indentation
 is a personal preference, and can be easily customized.
 
 Two variables control the way code is indented: `sqlind-basic-offset` and
-`sqlind-indentation-offsets-alist`.  To customize these variables, you can set
-them up in your init.el file before loading the package.  For example:
+`sqlind-indentation-offsets-alist`.  To customize these variables, you need to
+create a function that sets custom values and add it to `sql-mode-hook`.
 
-    (require 'sql-indent)
-    (add-hook 'sql-mode-hook 'sqlind-setup)
+### A Simple Customization Example
 
-    (setq sqlind-basic-offset 4) ; use 4 spaces as the basic indentation block.
+The default indentation rules will align to the right all the keywords in a
+SELECT statement, like this:
 
-    ;; Update indentation rules, select, insert, delete and update keywords
-    ;; are aligned with the clause start
+```sql
+select c1, c2
+  from t1
+ where c3 = 2
+```
 
-    (defvar my-sql-indentation-offsets-alist
-      `((select-clause 0)
-        (insert-clause 0)
-        (delete-clause 0)
-        (update-clause 0)
-        ,@sqlind-default-indentation-offsets-alist))
+If you prefer to have them aligned to the left, like this:
 
-    (add-hook 'sql-mode-hook
-        (lambda ()
-           (setq sqlind-indentation-offsets-alist
-               my-sql-indentation-offsets-alist)))
+```sql
+select c1, c2
+from t1
+where c3 = 2
+```
+
+You can add the following code to your init file:
+
+```emacs-lisp
+(require 'sql-indent)
+
+;; Update indentation rules, select, insert, delete and update keywords
+;; are aligned with the clause start
+
+(defvar my-sql-indentation-offsets-alist
+  `((select-clause 0)
+    (insert-clause 0)
+    (delete-clause 0)
+    (update-clause 0)
+    ,@sqlind-default-indentation-offsets-alist))
+
+(add-hook 'sql-mode-hook
+    (lambda ()
+       (setq sqlind-indentation-offsets-alist
+             my-sql-indentation-offsets-alist)))
+```
+
+## Customization Basics
 
 The simplest way to adjust the indentation is to explore the syntactic
 information using `sqlind-show-syntax-of-line`.  To use it, move the cursor to
-the line you would like to be indented and type:
+the line you would like to indent and type:
 
     M-x sqlind-show-syntax-of-line RET
 
@@ -43,24 +65,25 @@ A message like the one below will be shown in the messages buffer:
     ((select-clause . 743) (statement-continuation . 743))
 
 The first symbol displayed is the syntactic symbol used for indentation, in
-this case `select-clause`.  The syntactic symbols are described below,
-however, for now, this is the symbol that will need to be updated in
+this case `select-clause`.  The syntactic symbols are described in a section
+below, however, for now, this is the symbol that will need to be updated in
 `sqlind-indentation-offsets-alist`.  The number next to it represents the
 anchor, or reference position in the buffer where the current statement
-starts.  It is useful if you need to write your own indentation functions.
+starts.  The anchor and is useful if you need to write your own indentation
+functions.
 
-To customize indentation for this type of statement, add an entry in the list,
-as shown above, with some information about how it should be indented.  The
-list can contain any number of symbols, each defining an adjustment to the
-base indentation.  The base indentation is the column of the indentation
-anchor point.
+To customize indentation for this type of statement, add an entry in the
+`sqlind-indentation-offsets-alist`, for the syntactic symbol shown, with
+information about how it should be indented.  This information is a list
+containing *indentation control items* (these are described below).
 
 For example, to indent keyword in SELECT clauses at the same level as the
-keyword itself, use:
+keyword itself, we use a number which is added to the indentation level of the
+anchor, in this case, 0:
 
     (select-clause 0)
 
-To indent it `sqlind-basic-offset` plus one more space, use:
+To indent it at `sqlind-basic-offset` plus one more space, use:
 
     (select-clause + 1)
 
@@ -73,21 +96,22 @@ examples for indentation setup rules.
 
 ## Indentation control items
 
-The following items can be present in the indentation list for each syntax
-symbol.  Any number of them can be present, but usually on one will be there:
+`sqlind-calculate-indentation` is the function that calculates the indentation
+offset to use.  The indentation offset starts with the indentation column of
+the ANCHOR point and it is adjusted based on the following items:
 
 * a `NUMBER` -- the NUMBER will be added to the indentation offset.
 
-* `+` -- the current indentation offset is incremented by `sqlind-basic-offset'
+* `+` -- the current indentation offset is incremented by `sqlind-basic-offset`
 
 * `++` -- the current indentation offset is indentation by 2 *
-  `sqlind-basic-offset'
+  `sqlind-basic-offset`
 
 * `-` -- the current indentation offset is decremented by
-  `sqlind-basic-offset'
+  `sqlind-basic-offset`
 
 * `--` -- the current indentation offset is decremented by 2 *
-  `sqlind-basic-offset'
+  `sqlind-basic-offset`
 
 * a `FUNCTION` -- the syntax and current indentation offset is passed to the
   function and its result is used as the new indentation offset.  This can be
@@ -95,15 +119,15 @@ symbol.  Any number of them can be present, but usually on one will be there:
 
 The following functions are available as part of the package:
 
-* `sqlind-use-anchor-indentation` -- discards the current offset and returns
+* `sqlind-use-anchor-indentation` -- discard the current offset and returns
   the indentation column of the ANCHOR
-
-* `sqlind-use-previous-line-indentation` -- discards the current offset and
-  returns the indentation column of the previous line
-
-* `sqlind-lineup-to-anchor` -- discards the current offset and returns the
+  
+* `sqlind-lineup-to-anchor` -- discard the current offset and returns the
   column of the anchor point, which may be different than the indentation
-  column
+  column of the anchor point.
+
+* `sqlind-use-previous-line-indentation` -- discard the current offset and
+  returns the indentation column of the previous line
 
 * `sqlind-lineup-open-paren-to-anchor` -- if the line starts with an open
   paren, discard the current offset and return the column of the anchor point.
@@ -112,15 +136,17 @@ The following functions are available as part of the package:
   paren, discard the current offset and return the column of the corresponding
   open paren.
 
-* `sqlind-lone-semicolon` -- Indent a lone semicolon with the statement start.
+* `sqlind-lone-semicolon` -- if the line contains a single semicolon ';',
+  use the value of `sqlind-use-anchor-indentation`
 
-* `sqlind-adjust-operator` -- Adjust the indentation for operators in
-  select clauses, it will
-  indent as follows:
+* `sqlind-adjust-operator` -- if the line starts with an arithmetic operator
+  (like `+` , `-`, or `||`), line it up so that the right hand operand lines
+  up with the left hand operand of the previous line.  For example, it will
+  indent the `||` operator like this:
 
 ```sql
     select col1, col2
-              || col3 as composed_column,
+              || col3 as composed_column, -- align col3 with col2
            col4
         || col5 as composed_column2
     from   my_table
@@ -128,43 +154,15 @@ The following functions are available as part of the package:
     and    cond2 = 2;
 ```
 
-* `sqlind-left-justify-logical-operator` -- Align an AND, OR or NOT operator
-  with the start of the WHERE clause.  If this rule is added to the
-  'in-select-clause syntax after the `sqlind-lineup-to-clause-end' rule, it
-  will adjust lines starting with AND, OR or NOT to be aligned so they sit
-  left under the WHERE clause.
+* `sqlind-left-justify-logical-operator` -- If the line starts with a logic
+  operator (AND, OR NOT), line the operator with the start of the WHERE
+  clause.  This rule should be added to the `in-select-clause` syntax after
+  the `sqlind-lineup-to-clause-end` rule.
 
-* `sqlind-right-justify-logical-operator` -- Align an AND, OR or NOT operator
-  with the end of the WHERE clause. If this rule is added to the
-  'in-select-clause syntax after the `sqlind-lineup-to-clause-end' rule, it
-  will adjust lines starting with AND, OR or NOT to be aligned so they sit
-  under the WHERE clause.
-
-* `sqlind-adjust-comma` -- if the line starts with a comma, adjust the current
-  offset so that the line is indented to the first word character.  For
-  example, if added to a 'select-column' syntax indentation rule, it will
-  indent as follows:
-
-```sql
-select col1
-   ,   col2 -- align "col2" to "col1"
-from my_table;
-```
-
-* `sqlind-adjust-and-or` -- line up AND and OR logic operators with the end of
-  the where clause.  This rule needs to be added to the in-select-clause
-  syntax, after the `sqlind-lineup-to-clause-end`.  For example, the following
-  setup:
-
-```elisp
-(defvar my-sql-indentation-offsets-alist
-  `((in-select-clause   sqlind-lineup-to-clause-end
-                        sqlind-adjust-and-or)
-    ,@sqlind-default-indentation-offsets-alist))
-```
-
-Will indent SQL like this:
-
+* `sqlind-right-justify-logical-operator` -- If the line starts with a logic
+  operator (AND, OR NOT), line the operator with the end of the WHERE
+  clause. This rule should be added to the `in-select-clause` syntax.
+  
 ```sql
 select *
   from table
@@ -172,10 +170,21 @@ select *
    and c = d; -- AND clause sits under the where clause
 ```
 
+* `sqlind-adjust-comma` -- if the line starts with a comma, adjust the current
+  offset so that the line is indented to the first word character.  For
+  example, if added to a `select-column` syntax indentation rule, it will
+  indent as follows:
+
+```sql
+select col1
+   ,   col2 -- align "col2" with "col1"
+from my_table;
+```
+
 * `sqlind-lineup-into-nested-statement` -- discard the current offset and
   return the column of the first word inside a nested statement.  This rule
-  makes sense only for 'nested-statement-continuation' syntax indentation
-  rule, it will indent as follows:
+  should be added to `nested-statement-continuation` syntax indentation rule,
+  and will indent as follows:
 
 ```sql
 (    a,
@@ -199,7 +208,7 @@ statements.  Have a look at their doc strings for what they do:
 
 * `sqlind-lineup-joins-to-anchor`
 
-## Syntactic symbols
+## Syntactic Symbols
 
 The the SQL parsing code returns a syntax definition (either a symbol or a
 list) and an anchor point, which is a buffer position.  The syntax symbols can
