@@ -179,10 +179,27 @@ block label might be empty."
   "Return t if POINT is at the same syntactic level as START.
 This means that POINT is at the same nesting level and not inside
 a strinf or comment."
-  (let ((parse-info (parse-partial-sexp start point)))
-    (not (or (nth 3 parse-info)                 ; inside a string
-	     (nth 4 parse-info)                 ; inside a comment
-	     (> (nth 0 parse-info) 0))))) ; inside a nested paren
+  (save-excursion
+    (let ((parse-info (parse-partial-sexp start point)))
+      (not (or (nth 3 parse-info)                 ; inside a string
+               (nth 4 parse-info)                 ; inside a comment
+               (> (nth 0 parse-info) 0))))))      ; inside a nested paren
+
+(defun sqlind-column-definition-start (pos limit)
+  "Find the beginning of a column definition in a select statement.
+POS is the current position of the line to be indented, assumed
+to be in a 'select-column-continuation syntax.
+
+LIMIT is the limit of the search, the beginning of the select
+statement."
+  (save-excursion
+    (goto-char pos)
+    (catch 'found
+      (while (re-search-backward "," limit 'noerror)
+        (when (sqlind-same-level-statement (point) pos)
+          (forward-char 1)
+          (sqlind-forward-syntactic-ws)
+          (throw 'found (point)))))))
 
 ;;;;; Find the beginning of the current statement
 
@@ -291,8 +308,9 @@ But don't go before LIMIT."
 ;;;;; Find the syntax and beginning of the current block
 
 (defconst sqlind-end-statement-regexp
-  "end\\_>\\(?:[ \n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \n\r\f]*\\)\\([a-z0-9_]+\\)?\\(?:[ \n\r\f]*\\);"
-  "Match an end of statement.")
+  "end\\_>\\(?:[ \n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \n\r\f]*\\)\\([a-z0-9_]+\\)?"
+  "Match an end of statement.
+Matches a string like \"end if|loop|case MAYBE-LABEL\".")
 
 (defvar sqlind-end-stmt-stack nil
   "Stack of end-of-statement positions.
@@ -635,10 +653,12 @@ See also `sqlind-beginning-of-block'"
   "Return the syntax inside a CASE expression begining at START."
   (save-excursion
     (goto-char pos)
-    (cond ((looking-at "when\\|end\\|else")
-           ;; A WHEN, or END clause is indented relative to the start of the case
-           ;; expression
+    (cond ((looking-at "when\\|else")
+           ;; A WHEN, or ELSE clause is indented relative to the start of the
+           ;; case expression
            (cons 'case-clause start))
+          ((looking-at "end")
+           (cons (list 'block-end 'case "") start))
           ((looking-at "then")
            ;; THEN and ELSE clauses are indented relative to the start of the
            ;; when clause, which we must find
@@ -1155,12 +1175,13 @@ purposes. "
                      ((looking-at "update")
                       (push (sqlind-syntax-in-update pos (point)) context))))
 
-                 ;; (when (eq (car (car context)) 'select-column-continuation)
-                 ;;   ;; case expressions can show up here, maybe refine this
-                 ;;   ;; syntax
-                 ;;   t
-                 ;;   )
-
+                 (when (eq (car (car context)) 'select-column-continuation)
+                   (let ((cdef (sqlind-column-definition-start pos (cdar context))))
+                     (when cdef
+                       (save-excursion
+                         (goto-char cdef)
+                         (when (looking-at "case")
+                           (push (sqlind-syntax-in-case pos (point)) context))))))
                  )))
 
             ;; create block start syntax if needed
