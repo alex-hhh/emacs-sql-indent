@@ -1,5 +1,5 @@
-# Compiled
+# -*- mode: conf -*-
 *.elc
-
-# Packaging
-.cask
+*~
+\#*\#
+.\#*
