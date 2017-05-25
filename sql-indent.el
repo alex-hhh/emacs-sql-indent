@@ -41,6 +41,7 @@
 
 (require 'sql)
 (require 'align)
+(require 'cl-lib)
 (eval-when-compile (require 'cc-defs))  ; for c-point
 
 ;;;; General setup
@@ -75,9 +76,7 @@ This is slightly different than the syntax table used for
 navigation: some punctuation characters are made symbol
 constituents so that syntactic navigation works over them.")
 
-;;;; Syntactic analysis of SQL code
-
-;;;;; Commentary
+;;;; Utilities
 
 ;; The following routines perform rudimentary syntactical analysis of SQL
 ;; code.  The indentation engine decides how to indent based on what this code
@@ -86,8 +85,6 @@ constituents so that syntactic navigation works over them.")
 ;; To examine the syntax of the current line, you can use the
 ;; `sqlind-show-syntax-of-line'.  This is only useful if you want to debug this
 ;; package or are just curious.
-
-;;;;; Utilities
 
 (defconst sqlind-comment-start-skip "\\(--+\\|/\\*+\\)\\s *"
   "Regexp to match the start of a SQL comment.")
@@ -180,6 +177,51 @@ statement."
           (sqlind-forward-syntactic-ws)
           (throw 'found (point)))))))
 
+(defun sqlind-syntax (context)
+  "Return the most specific syntax of CONTEXT.
+See `sqlind-syntax-of-line' for the definition of CONTEXT."
+  (when context
+    (caar context)))
+
+(defun sqlind-syntax-symbol (context)
+  "Return the syntax symbol for the most specific syntax of CONTEXT.
+See `sqlind-syntax-of-line' for the definition of CONTEXT."
+  (when context
+    (let ((syntax-part (caar context)))
+      (if (symbolp syntax-part)
+          syntax-part
+        (car syntax-part)))))
+
+(defun sqlind-anchor-point (context)
+  "Return the anchor point for the most specifc syntax of CONTEXT.
+See `sqlind-syntax-of-line' for the definition of CONTEXT."
+  (when context
+    (cdar context)))
+
+(defun sqlind-outer-context (context)
+  "Return the outer context from CONTEXT.
+See `sqlind-syntax-of-line' for the definition of CONTEXT."
+  (when context
+    (cdr context)))
+
+(defun sqlind-find-context (syntax-symbol context)
+  "Find SYNTAX-SYMBOL in the CONTEXT chain.
+CONTEXT chain is a list of (SYNTAX-SYMBOL . ANCHOR), as returned
+by `sqlind-syntax-of-line'.  The function finds the fist element
+which matches the specified syntax symbol and returns the list
+from that point.
+
+See `sqlind-indentation-syntax-symbols' for the possible syntax
+symbols and their meaning."
+  (cond ((null context)
+         nil)
+        ((eq syntax-symbol (sqlind-syntax-symbol context))
+          context)
+        (t
+         (sqlind-find-context syntax-symbol (sqlind-outer-context context)))))
+
+;;;; Syntactic analysis of SQL code
+
 ;;;;; Find the beginning of the current statement
 
 (defconst sqlind-sqlplus-directive
@@ -210,7 +252,7 @@ determine the statement start in SQLite scripts.")
   "Return the position of an SQL directive, or nil.
 We will never move past one of these in our scan.  We also assume
 they are one-line only directives."
-  (let ((rx (case (and (boundp 'sql-product) sql-product)
+  (let ((rx (cl-case (and (boundp 'sql-product) sql-product)
               (ms sqlind-ms-directive)
               (sqlite sqlind-sqlite-directive)
               (oracle sqlind-sqlplus-directive)
@@ -346,7 +388,7 @@ See also `sqlind-beginning-of-block'"
 		 ;; "if" blocks (but not "elsif" blocks) need to be
 		 ;; ended with "end if"
 		 (when (eq if-kind 'if)
-		   (destructuring-bind (pos kind label)
+		   (cl-destructuring-bind (pos kind label)
 		       (pop sqlind-end-stmt-stack)
 		     (unless (and (eq kind 'if)
 				  (sqlind-labels-match label if-label))
@@ -367,7 +409,7 @@ See also `sqlind-beginning-of-block'"
 		       (throw 'finished
 			 (list 'in-block 'case case-label)))))
 		 ;; else
-		 (destructuring-bind (pos kind label)
+		 (cl-destructuring-bind (pos kind label)
 		     (pop sqlind-end-stmt-stack)
 		   (unless (and (eq kind 'case)
 				(sqlind-labels-match label case-label))
@@ -390,7 +432,7 @@ See also `sqlind-beginning-of-block'"
         (cond ((null sqlind-end-stmt-stack)
                (throw 'finished (list 'in-block 'if "")))
               (t
-               (destructuring-bind (pos kind _label)
+               (cl-destructuring-bind (pos kind _label)
                    (pop sqlind-end-stmt-stack)
                  (unless (eq kind 'if)
                    (throw 'finshed
@@ -427,7 +469,7 @@ See also `sqlind-beginning-of-block'"
               ;; the labels match
               (if (null sqlind-end-stmt-stack)
                   (throw 'finished (list 'in-block 'loop loop-label))
-                  (destructuring-bind (pos kind label)
+                  (cl-destructuring-bind (pos kind label)
                       (pop sqlind-end-stmt-stack)
                     (unless (and (eq kind 'loop)
                                  (sqlind-labels-match label loop-label))
@@ -467,7 +509,7 @@ See also `sqlind-beginning-of-block'"
 		  (t
 		   (list 'in-begin-block nil begin-label)))))
 
-	(destructuring-bind (pos kind label) (pop sqlind-end-stmt-stack)
+	(cl-destructuring-bind (pos kind label) (pop sqlind-end-stmt-stack)
 	  (cond
 	    (kind
 	     (throw 'finished
@@ -536,7 +578,7 @@ See also `sqlind-beginning-of-block'"
 		(throw 'finished
 		  (list (if (memq what '(procedure function)) 'defun-start what)
 			name))
-		(destructuring-bind (pos kind label) (pop sqlind-end-stmt-stack)
+		(cl-destructuring-bind (pos kind label) (pop sqlind-end-stmt-stack)
 		  (when (not (eq kind nil))
 		    (throw 'finished
 		      (list 'syntax-error
@@ -592,7 +634,7 @@ See also `sqlind-beginning-of-block'"
 	  (when (null sqlind-end-stmt-stack)
 	    (throw 'finished (list 'defun-start proc-name)))
 
-	  (destructuring-bind (pos kind label) (pop sqlind-end-stmt-stack)
+	  (cl-destructuring-bind (pos kind label) (pop sqlind-end-stmt-stack)
 	    (unless (and (eq kind nil)
 			 (sqlind-labels-match label proc-name))
 	      (throw 'finished
@@ -902,9 +944,9 @@ KIND is the symbol determining the type of the block ('if, 'loop,
                     end-pos end-pos)
               end-pos)))
 
-    (let* ((syntax (car (car context)))
-	   (anchor (cdr (car context)))
-	   (syntax-symbol (if (symbolp syntax) syntax (nth 0 syntax))))
+    (let ((syntax (sqlind-syntax context))
+          (anchor (sqlind-anchor-point context))
+          (syntax-symbol (sqlind-syntax-symbol context)))
       (cond
 	((memq syntax-symbol '(package package-body))
 	 ;; we are closing a package declaration or body, `end-kind' must be
@@ -1056,9 +1098,10 @@ ANCHOR is a buffer position which is the reference for the
 SYNTAX.  `sqlind-indentation-syntax-symbols' lists the syntax
 symbols and their meaning.
 
-Only the first element of this list is used for indentation, the
-rest are 'less specific' syntaxes, mostly left in for debugging
-purposes."
+The first element in the list is the most specific syntax for the
+line, the remaining elemens are more generic ones.  For example,
+a line can be inside an SELECT clause which itself is inside a
+procedure block."
   (save-excursion
     (with-syntax-table sqlind-syntax-table
       (let* ((pos (progn (back-to-indentation) (point)))
@@ -1111,10 +1154,9 @@ purposes."
         ;; now let's refine the syntax by adding info about the current line
         ;; into the mix.
 
-        (let* ((most-inner-syntax (car context))
-               (syntax (car most-inner-syntax))
-               (anchor (cdr most-inner-syntax))
-               (syntax-symbol (if (symbolp syntax) syntax (nth 0 syntax))))
+        (let ((syntax (sqlind-syntax context))
+              (anchor (sqlind-anchor-point context))
+              (syntax-symbol (sqlind-syntax-symbol context)))
           
           (goto-char pos)
           
@@ -1181,8 +1223,8 @@ purposes."
                      ((looking-at "update")
                       (push (sqlind-syntax-in-update pos (point)) context))))
 
-                 (when (eq (car (car context)) 'select-column-continuation)
-                   (let ((cdef (sqlind-column-definition-start pos (cdar context))))
+                 (when (eq (sqlind-syntax-symbol context) 'select-column-continuation)
+                   (let ((cdef (sqlind-column-definition-start pos (sqlind-anchor-point context))))
                      (when cdef
                        (save-excursion
                          (goto-char cdef)
@@ -1254,7 +1296,7 @@ purposes."
 
 
 ;;;; Indentation of SQL code
-
+;;;;; Indentation calculation routines
 (defvar sqlind-basic-offset 2
   "The basic indentaion amount for SQL code.
 Indentation is usually done in multiples of this amount, but
@@ -1532,10 +1574,7 @@ returned."
 				 (goto-char (cdar syntax))
 				 (current-column))))
 
-      (let* ((this-syntax (caar syntax))
-	     (syntax-symbol (if (symbolp this-syntax)
-				this-syntax
-				(nth 0 this-syntax)))
+      (let* ((syntax-symbol (sqlind-syntax-symbol syntax))
 	     (indent-info (cdr (assoc syntax-symbol
 				      sqlind-indentation-offsets-alist)))
 	     (new-indentation base-indentation))
@@ -1557,24 +1596,11 @@ returned."
 	  (setq indent-info (cdr indent-info)))
 	new-indentation)))
 
-(defun sqlind-find-syntax (syntax-symbol syntax)
-  "Find the SYNTAX-SYMBOL in the SYNTAX chain.
-SYNTAX chain is a list of (SYNTAX-SYMBOL . ANCHOR), as returned
-by `sqlind-syntax-of-line'.  The function finds the fist element
-which matches the specified syntax symbol.
-
-See `sqlind-indentation-syntax-symbols' for the possible syntax
-symbols and their meaning."
-  (if (null syntax)
-      nil
-    (let ((stx (car (car syntax))))
-      (if (if (atom stx) (eq stx syntax-symbol) (eq (car stx) syntax-symbol))
-          (car syntax)
-        (sqlind-find-syntax syntax-symbol (cdr syntax))))))
+;;;;; Indentation helper functions
 
 (defun sqlind-report-sytax-error (syntax _base-indentation)
   "Report a syntax error for a 'syntax-error SYNTAX."
-  (destructuring-bind (_sym msg start end) (caar syntax)
+  (cl-destructuring-bind (_sym msg start end) (sqlind-syntax syntax)
     (message "%s (%d %d)" msg start end))
   nil)
 
@@ -1590,25 +1616,23 @@ supported in SQL."
 By default, the column of the anchor position is uses as a base
 indentation.  You can use this function to switch to using the
 indentation of the anchor as the base indentation."
-  (let ((anchor (cdar syntax)))
-    (save-excursion
-      (goto-char anchor)
-      (current-indentation))))
+  (save-excursion
+    (goto-char (sqlind-anchor-point syntax))
+    (current-indentation)))
 
 (defun sqlind-lineup-to-anchor (syntax _base-indentation)
   "Return the column of the anchor point of SYNTAX.
 This need not be the indentation of the actual line that contains
 anchor."
-  (let ((anchor (cdar syntax)))
-    (save-excursion
-      (goto-char anchor)
-      (current-column))))
+  (save-excursion
+    (goto-char (sqlind-anchor-point syntax))
+    (current-column)))
 
 (defun sqlind-use-previous-line-indentation (syntax _base-indentation)
   "Return the indentation of the previous line.
 If the start of the previous line is before the anchor of SYNTAX,
 use the column of the anchor + 1."
-  (let ((anchor (cdar syntax)))
+  (let ((anchor (sqlind-anchor-point syntax)))
     (save-excursion
       (forward-line -1)
       (back-to-indentation)
@@ -1636,19 +1660,18 @@ comment, like this:
    /* Some comment line
       Some other comment line
     */"
-  (let ((anchor (cdar syntax)))
-    (save-excursion
-      (back-to-indentation)
-      (if (or (looking-at sqlind-comment-prefix)
-	      (looking-at sqlind-comment-end))
-	  (progn
-	    (goto-char anchor)
-	    (1+ (current-column)))
-	  ;; else
-	  (goto-char anchor)
-	  (when (looking-at sqlind-comment-start-skip)
-	    (goto-char (match-end 0)))
-	  (current-column)))))
+  (save-excursion
+    (back-to-indentation)
+    (if (or (looking-at sqlind-comment-prefix)
+            (looking-at sqlind-comment-end))
+        (progn
+          (goto-char (sqlind-anchor-point syntax))
+          (1+ (current-column)))
+      ;; else
+      (goto-char (sqlind-anchor-point syntax))
+      (when (looking-at sqlind-comment-start-skip)
+        (goto-char (match-end 0)))
+      (current-column))))
 
 (defun sqlind-indent-comment-start (syntax base-indentation)
   "Return the indentation for a comment start SYNTAX.
@@ -1665,7 +1688,8 @@ BASE-INDENTATION."
 	(progn
 	  (goto-char (match-beginning 0))
 	  (current-column))
-	(sqlind-calculate-indentation (cdr syntax) base-indentation))))
+      (sqlind-calculate-indentation
+       (sqlind-outer-context syntax) base-indentation))))
 
 (defun sqlind-indent-select-column (syntax base-indentation)
   "Return the indentation for a column of a SELECT clause.
@@ -1676,16 +1700,15 @@ current indentation, which we need to update.
 We try to align to the previous column start, but if we are the
 first column after the SELECT clause we simply add
 `sqlind-basic-offset'."
-  (let ((anchor (cdar syntax)))
-    (save-excursion
-      (goto-char anchor)
-      (when (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
-	(goto-char (match-end 0)))
-      (skip-syntax-forward " ")
-      (if (or (looking-at sqlind-comment-start-skip)
-	      (looking-at "$"))
-	  (+ base-indentation sqlind-basic-offset)
-	  (current-column)))))
+  (save-excursion
+    (goto-char (sqlind-anchor-point syntax))
+    (when (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
+      (goto-char (match-end 0)))
+    (skip-syntax-forward " ")
+    (if (or (looking-at sqlind-comment-start-skip)
+            (looking-at "$"))
+        (+ base-indentation sqlind-basic-offset)
+      (current-column))))
 
 (defun sqlind-indent-select-table (syntax base-indentation)
   "Return the indentation for a table in the FROM section.
@@ -1695,16 +1718,15 @@ current indentation, which we need to update.
 
 We try to align to the first table, but if we are the first
 table, we simply add `sqlind-basic-offset'."
-  (let ((anchor (cdar syntax)))
-    (save-excursion
-      (goto-char anchor)
-      (when (looking-at "from")
-	(goto-char (match-end 0)))
-      (skip-syntax-forward " ")
-      (if (or (looking-at sqlind-comment-start-skip)
-	      (looking-at "$"))
-	  (+ base-indentation sqlind-basic-offset)
-	  (current-column)))))
+  (save-excursion
+    (goto-char (sqlind-anchor-point syntax))
+    (when (looking-at "from")
+      (goto-char (match-end 0)))
+    (skip-syntax-forward " ")
+    (if (or (looking-at sqlind-comment-start-skip)
+            (looking-at "$"))
+        (+ base-indentation sqlind-basic-offset)
+      (current-column))))
 
 (defun sqlind-lineup-to-clause-end (syntax base-indentation)
   "Line up the current line with the end of a query clause.
@@ -1718,7 +1740,7 @@ indented by `sqlind-basic-offset', otherwise the current line is
 indented so that it starts in next column from where the clause
 keyword ends.
 Argument BASE-INDENTATION is updated."
-  (destructuring-bind ((_sym clause) . anchor) (car syntax)
+  (cl-destructuring-bind ((_sym clause) . anchor) (car syntax)
     (save-excursion
       (goto-char anchor)
       (forward-char (1+ (length clause)))
@@ -1742,7 +1764,7 @@ If this rule is added to the 'in-select-clause syntax after the
 with AND, OR or NOT to be aligned so they sit under the WHERE clause."
   (save-excursion
     (back-to-indentation)
-    (destructuring-bind ((_sym clause) . anchor) (car syntax)
+    (cl-destructuring-bind ((_sym clause) . anchor) (car syntax)
       (if (and (equal clause "where")
                (looking-at "and\\|or\\|not"))
           (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
@@ -1759,7 +1781,7 @@ If this rule is added to the 'in-select-clause syntax after the
 with AND, OR or NOT to be aligned so they sit left under the WHERE clause."
   (save-excursion
     (back-to-indentation)
-    (destructuring-bind ((_sym clause) . anchor) (car syntax)
+    (cl-destructuring-bind ((_sym clause) . anchor) (car syntax)
       (if (and (equal clause "where")
                (looking-at "and\\|or\\|not"))
           (progn (goto-char anchor) (current-column))
@@ -1887,11 +1909,11 @@ BASE-INDENTATION, acting as a no-op."
   (save-excursion
     (back-to-indentation)
     (if (looking-at ")")
-        (let ((stx (sqlind-find-syntax 'nested-statement-continuation syntax)))
+        (let ((stx (sqlind-find-context 'nested-statement-continuation syntax)))
           (if stx
-              (let ((anchor (cdr stx)))
-                (goto-char anchor)
-                (current-column))
+              (progn
+               (goto-char (sqlind-anchor-point stx))
+               (current-column))
             base-indentation))
       base-indentation)))
 
@@ -1919,13 +1941,13 @@ statement.  For example:
 This function only makes sense in a
 'nested-statement-continuation sytnax indentation rule."
   (save-excursion
-    (let ((anchor (cdr (car syntax))))
-      (goto-char anchor)
-      (forward-char 1)
-      (sqlind-forward-syntactic-ws)
-      (current-column))))
+    (goto-char (sqlind-anchor-point syntax))
+    (forward-char 1)
+    (sqlind-forward-syntactic-ws)
+    (current-column)))
 
-
+;;;;; sqlind-indent-line
+
 (defun sqlind-indent-line ()
   "Indent the current line according to SQL conventions.
 `sqlind-basic-offset' defined the number of spaces in the basic
@@ -1944,7 +1966,7 @@ determine how to indent each type of syntactic element."
 	(when (> offset 0)
 	  (forward-char offset))))))
 
-;;; alignment rules
+;;;; Alignment rules
 
 (defvar sqlind-align-rules
   '(;; Line up the two side of arrow =>
@@ -1999,7 +2021,7 @@ To use it, select the region to be aligned and run \\[align].
 
 See also `align' and `align-rules-list'")
 
-;;;; sqlind-setup
+;;;; sqlind-minor-mode, sqlind-setup
 
 ;;;###autoload
 (define-minor-mode sqlind-minor-mode
