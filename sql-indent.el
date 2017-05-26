@@ -420,7 +420,10 @@ See also `sqlind-beginning-of-block'"
 	   ;; an exception statement is a block start only if we have
 	   ;; no end statements in the stack
 	   (when (null sqlind-end-stmt-stack)
-	     (throw 'finished (list 'in-block 'exception "")))))))))
+	     (throw 'finished (list 'in-block 'exception ""))))
+          (t                       ; restore position if we didn't do anything
+           (goto-char start-pos)
+           nil))))))
 
 (defun sqlind-maybe-if-statement ()
   "If (point) is on an IF statement, report its syntax."
@@ -438,6 +441,22 @@ See also `sqlind-beginning-of-block'"
                    (throw 'finshed
                      (list 'syntax-error
                            "bad closing for if block" (point) pos))))))))))
+
+(defun sqlind-maybe-case-statement ()
+  "If (point) is on a case statement"
+  (when (looking-at "case")
+    (save-excursion
+      (sqlind-backward-syntactic-ws)
+      (forward-word -1)
+      (unless (looking-at "end")   ; we don't want to match an "end case" here
+        (if (null sqlind-end-stmt-stack)
+            (throw 'finished (list 'in-block 'case ""))
+          (cl-destructuring-bind (pos kind _label)
+              (pop sqlind-end-stmt-stack)
+            (unless (or (not kind) (eq kind 'case))
+              (throw 'finished
+                (list 'syntax-error
+                      "bad closing for case block" (point) pos)))))))))
 
 (defun sqlind-maybe-else-statement ()
   "If (point) is on an ELSE statement, report its syntax.
@@ -644,7 +663,7 @@ See also `sqlind-beginning-of-block'"
   (concat "\\(\\b"
 	  (regexp-opt '("if" "then" "else" "elsif" "loop"
 			"begin" "declare" "create"
-			"procedure" "function" "end") t)
+			"procedure" "function" "end" "case") t)
 	  "\\b\\)\\|)")
   "Regexp to match the start of a block.")
 
@@ -657,17 +676,18 @@ reverse order (a stack) and is used to skip over nested blocks."
   (catch 'finished
     (let ((sqlind-end-stmt-stack end-statement-stack))
       (while (re-search-backward sqlind-start-block-regexp nil 'noerror)
-	(or (sqlind-in-comment-or-string (point))
-	    (when (looking-at ")") (forward-char 1) (forward-sexp -1) t)
-	    (sqlind-maybe-end-statement)
+        (or (sqlind-in-comment-or-string (point))
+            (when (looking-at ")") (forward-char 1) (forward-sexp -1) t)
+            (sqlind-maybe-end-statement)
             (sqlind-maybe-if-statement)
-	    (sqlind-maybe-then-statement)
-	    (sqlind-maybe-else-statement)
-	    (sqlind-maybe-loop-statement)
-	    (sqlind-maybe-begin-statement)
-	    (sqlind-maybe-declare-statement)
-	    (sqlind-maybe-create-statement)
-	    (sqlind-maybe-defun-statement))))
+            (sqlind-maybe-case-statement)
+            (sqlind-maybe-then-statement)
+            (sqlind-maybe-else-statement)
+            (sqlind-maybe-loop-statement)
+            (sqlind-maybe-begin-statement)
+            (sqlind-maybe-declare-statement)
+            (sqlind-maybe-create-statement)
+            (sqlind-maybe-defun-statement))))
     'toplevel))
 
 ;;;;; Determine the syntax inside a case expression
@@ -1208,10 +1228,12 @@ procedure block."
                  ;; at the start of one.
                  (when (< (point) pos)
                    (cond
-                     ;; NOTE: We only catch here "CASE" clauses which start
-                     ;; inside a nested paranthesis
-                     ((looking-at "case")
-                      (push (sqlind-syntax-in-case pos (point)) context))
+                     ;; NOTE: We only catch here "CASE" expressions, not CASE
+                     ;; statements.  We also catch assignments with case (var
+                     ;; := CASE ...)
+                     ((looking-at "\\(\\w+[ \t\r\n\f]+:=[ \t\r\n\f]+\\)?\\(case\\)")
+                      (when (< (match-beginning 2) pos)
+                        (push (sqlind-syntax-in-case pos (match-beginning 2)) context)))
                      ((looking-at "with")
                       (push (sqlind-syntax-in-with pos (point)) context))
                      ((looking-at "select")
