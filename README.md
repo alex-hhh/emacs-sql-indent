@@ -288,11 +288,12 @@ defined for SQL code:
 
 * `(in-begin-block KIND LABEL)` -- line is inside a block started by a begin
   statement.  KIND (a symbol) is "toplevel-block" for a begin at toplevel,
-  "defun" for a begin that starts the body of a procedure or function, nil for
-  a begin that is none of the previous.  For a "defun", LABEL is the name of
-  the procedure or function, for the other block types LABEL contains the
-  block label, or the empty string if the block has no label.  ANCHOR is the
-  start of the block.
+  "defun" for a begin that starts the body of a procedure or function,
+  \"package\" for a begin that starts the body of a package, nil for a begin
+  that is none of the previous.  For a "defun" or "package", LABEL is the name
+  of the procedure, function or package, for the other block types LABEL
+  contains the block label, or the empty string if the block has no label.
+  ANCHOR is the start of the block.
 
 * `(block-start KIND)` -- line begins with a statement that starts a block.
   KIND (a symbol) can be one of "then", "else" or "loop".  ANCHOR is the

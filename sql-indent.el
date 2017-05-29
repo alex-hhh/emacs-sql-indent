@@ -270,7 +270,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (not (eq (point) (or limit (point-min))))
         (when (re-search-backward
-               ";\\|\\b\\(begin\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
+               ";\\|\\b\\(declare\\|begin\\|cursor\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
@@ -279,6 +279,9 @@ But don't go before LIMIT."
                      ;; of the keywords inside one of them and think this is a
                      ;; statement start.
                      (progn (forward-char 1) (forward-sexp -1)))
+                    ((looking-at "\\bcursor\\b")
+                     ;; statement begins at the start of the keyword
+                     (throw 'done (point)))
                     ((looking-at "\\b\\(then\\|else\\)\\b")
                      ;; then and else start statements when they are inside
                      ;; blocks, not expressions.
@@ -525,6 +528,9 @@ See also `sqlind-beginning-of-block'"
 		  ((and (listp previous-block-kind)
 			(eq (nth 0 previous-block-kind) 'defun-start))
 		   (list 'in-begin-block 'defun (nth 1 previous-block-kind)))
+                  ((and (listp previous-block-kind)
+                        (memq (nth 0 previous-block-kind) '(package package-body)))
+                   (list 'in-begin-block 'package (nth 1 previous-block-kind)))
 		  (t
 		   (list 'in-begin-block nil begin-label)))))
 
@@ -549,7 +555,8 @@ See also `sqlind-beginning-of-block'"
 	     (cond ((memq previous-block-kind '(toplevel declare-statement))
 		    (goto-char (cdr previous-block)))
 		   ((and (listp previous-block-kind)
-			 (eq (nth 0 previous-block-kind) 'defun-start))
+			 (memq (nth 0 previous-block-kind)
+                               '(defun-start package package-body)))
 		    (unless (sqlind-labels-match
 			     label (nth 1 previous-block-kind))
 		      (throw 'finished
@@ -1214,10 +1221,20 @@ procedure block."
                  ;; else, maybe we have a DML statement (select, insert,
                  ;; update and delete)
 
-                 ;; skip a cursor definition if it is before our point
-                 (when (looking-at "cursor[ \t\r\n\f]+[a-z0-9_]+[ \t\r\n\f]+is[ \t\r\n\f]+")
-                   (when (<= (match-end 0) pos)
-                     (goto-char (match-end 0))))
+                 ;; skip a cursor definition if it is before our point, in the
+                 ;; following format:
+                 ;;
+                 ;; CURSOR name IS
+                 ;; CURSOR name type IS
+                 (when (looking-at "cursor\\b")
+                   (let ((origin (point)))
+                     (forward-sexp 3)
+                     (sqlind-forward-syntactic-ws)
+                     (when (looking-at "is\\b")
+                       (goto-char (match-end 0))
+                       (sqlind-forward-syntactic-ws))
+                     (unless (<= (point) pos)
+                       (goto-char origin))))
 
                  ;; skip a forall statement if it is before our point
                  (when (looking-at "forall\\b")
@@ -1363,11 +1380,12 @@ The following syntax symbols are defined for SQL code:
 - (in-begin-block KIND LABEL) -- line is inside a block started
   by a begin statement.  KIND (a symbol) is \"toplevel-block\"
   for a begin at toplevel, \"defun\" for a begin that starts the
-  body of a procedure or function, nil for a begin that is none
-  of the previous.  For a \"defun\", LABEL is the name of the
-  procedure or function, for the other block types LABEL contains
-  the block label, or the empty string if the block has no label.
-  ANCHOR is the start of the block.
+  body of a procedure or function, \"package\" for a begin that
+  starts the body of a package, or nil for a begin that is none
+  of the previous.  For a \"defun\" or \"package\", LABEL is the
+  name of the procedure, function or package, for the other block
+  types LABEL contains the block label, or the empty string if
+  the block has no label.  ANCHOR is the start of the block.
 
 - (block-start KIND) -- line begins with a statement that starts
   a block.  KIND (a symbol) can be one of \"then\", \"else\" or
