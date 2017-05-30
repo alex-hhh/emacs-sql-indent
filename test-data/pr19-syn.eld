@@ -115,7 +115,9 @@
    . 1024))
  (((package-body "my_pacakge")
    . 595))
- (((package-body "my_pacakge")
+ (((block-start begin)
+   . 595)
+  ((package-body "my_pacakge")
    . 595))
  (((in-begin-block package "my_pacakge")
    . 1120))
@@ -135,4 +137,3 @@
    . 1120))
  ((toplevel . 1))
  ((toplevel . 1)))
- 

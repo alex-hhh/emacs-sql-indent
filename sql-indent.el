@@ -1285,7 +1285,8 @@ procedure block."
 
             ;; note that begin is not a block-start in a 'in-begin-block
             ;; context
-            ((and (memq syntax-symbol '(defun-start declare-statement toplevel))
+            ((and (memq syntax-symbol '(defun-start declare-statement toplevel
+                                        package package-body))
                   (looking-at "begin\\_>"))
              (push (cons (list 'block-start 'begin) anchor) context))
 
