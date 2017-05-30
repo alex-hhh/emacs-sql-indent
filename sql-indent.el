@@ -2045,6 +2045,13 @@ determine how to indent each type of syntactic element."
      (group 1 2)
      (case-fold . t)
      (repeat . t))
+    ;; Line up the two sides of piped string
+    (sql-pipes
+     (regexp . "[^:]\\(\\s-*\\)||\\(\\s-*\\)[^>]")
+     (modes quote (sql-mode))
+     (group 1 2)
+     (case-fold . t)
+     (repeat . t))
     ;; lineup the column aliases (the "as name" part) in a select statement
     (sql-select-lineup-column-names
      (regexp . ".*?\\(\\s +\\)as\\(\\s +\\).*")
