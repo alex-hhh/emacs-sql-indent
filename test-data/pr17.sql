@@ -6,14 +6,14 @@ set linesize 2500
 select sysdate from dual;
 
 select col1, 'a long line of text ending with a single word'
-          || col2
-          || col3
-          || 'some text' as composed_column,
+         || col2
+         || col3
+         || 'some text' as composed_column,
        col4
-    || col5 as composed_column2
+         || col5 as composed_column2
   from   my_table
  where  cond1 = fct1
-             || 'another text'
+        || 'another text'
     and    cond2 = 2;
 
 select atc.column_name,
@@ -40,23 +40,23 @@ select atc.column_name,
                            and    atc1.owner       = atc.owner
                            and    atc1.table_name  = atc.table_name
                            and    acc1.column_name = acc.column_name)
- ;
+        ;
 
 delete from my_table mt
  where  col_1    = v_col1
-    and   (col_2    = v_col2
-           or col_3 = v_col3)
-    and   col_42    = '42'
- ;
+        and   (col_2    = v_col2
+               or col_3 = v_col3)
+        and   col_42    = '42'
+        ;
 
 update my_table
    set    col1_has_a_long_name = value1,
           col2_is_short        = value2
  where cond1 is not null
-   and  (   col_2 = v_col2
-         or col_3 = v_col3)
-   and   col_42   = '42'
- ;
+       and  (   col_2 = v_col2
+             or col_3 = v_col3)
+       and   col_42   = '42'
+       ;
 
 insert into xyzxx
             ( aaa, xxx, bbb, ccc,
@@ -88,7 +88,7 @@ select aaa,
           xxx
  order by xxx desc,
           aaa asc
- ;
+          ;
 -- Local Variables:
 -- sql-product: oracle
 -- End:

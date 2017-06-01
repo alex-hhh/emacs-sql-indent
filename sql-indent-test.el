@@ -1,4 +1,4 @@
-;;; sql-indent-test.el --- Test utilities for sql-indent.el. -*- lexical-binding: t -*-
+;;; sql-indent-test.el --- Automated tests for sql-indent.el. -*- lexical-binding: t -*-
 ;; Copyright (C) 2017 Alex Harsanyi
 ;;
 ;; Author: Alex Harsanyi (AlexHarsanyi@gmail.com)
@@ -27,7 +27,15 @@
 ;;
 ;;     M-x ert RET "^sqlind-" RET
 ;;
-;; There are two types of tests,
+;; Tests can also be run in batch mode using the following command:
+;;
+;;    emacs -batch -Q --no-site-file -L . -l sql-indent-test.el -f ert-run-tests-batch-and-exit
+;;
+;; The above command used '-Q' and '--no-site-file options', making sure that
+;; the tests are run in a "standard" environment, regardless of what packages
+;; and settings are present in your personal init and site-init files.
+;;
+;;;; There are two types of tests,
 ;;
 ;; * SYNTAX CHECKS check if the syntax in an SQL file is correctly
 ;;   indentified.  These tests are independent of indentation preferences (see
@@ -41,10 +49,12 @@
 ;; prepared separately using `sqlind-collect-syntax-from-buffer' and
 ;; `sqlind-collect-indentation-offsets-from-buffer'.
 ;;
+;;;; Preparing new tests
+;;
 ;; To create a syntax check file, open an *ielm* buffer (M-x ielm RET) and
 ;; run:
 ;;
-;; (sqlind-collect-syntax-from-buffer (find-file "./test-data/pr7.sql"))
+;; (sqlind-collect-syntax-from-buffer (find-file-noselect "./test-data/pr7.sql"))
 ;;
 ;; The function will output a set of syntax definitions.  Put these into an
 ;; .eld file.
@@ -52,7 +62,7 @@
 ;; To create an indentation offsets file, run:
 ;;
 ;; (sqlind-collect-indentation-offsets-from-buffer
-;;   (find-file "./test-data/pr7.sql")
+;;   (find-file-noselect "./test-data/pr7.sql")
 ;;   sqlind-indentation-left-offsets-alist
 ;;   2)
 ;;
@@ -61,6 +71,7 @@
 ;;
 ;; See the end of file for examples on how to put together the actual tests.
 
+;;; Code
 (require 'ert)
 (require 'sql-indent)
 (require 'sql-indent-left)
@@ -71,32 +82,30 @@
 (defun sqlind-collect-syntax-from-buffer (buffer)
   (let ((result '()))
     (with-current-buffer buffer
-      (save-excursion
-        ;; NOTE: we indent the buffer according to the default rules first, as
-        ;; this affects anchor points.  We could get rid of this if we write a
-        ;; smarter `sqlind-ert-check-line-syntax'
-        (sqlind-ert-indent-buffer
-         (default-value 'sqlind-indentation-offsets-alist)
-         (default-value 'sqlind-basic-offset))
-        (goto-char (point-min))
+      ;; NOTE: we indent the buffer according to the default rules first, as
+      ;; this affects anchor points.  We could get rid of this if we write a
+      ;; smarter `sqlind-ert-check-line-syntax'
+      (sqlind-ert-indent-buffer
+       (default-value 'sqlind-indentation-offsets-alist)
+       (default-value 'sqlind-basic-offset))
+      (goto-char (point-min))
+      (let ((syn (sqlind-syntax-of-line)))
+        (setq result (cons syn result)))
+      (while (= (forward-line 1) 0)
         (let ((syn (sqlind-syntax-of-line)))
-          (setq result (cons syn result)))
-        (while (= (forward-line 1) 0)
-          (let ((syn (sqlind-syntax-of-line)))
-            (setq result (cons syn result))))))
+          (setq result (cons syn result)))))
     (reverse result)))
 
 (defun sqlind-collect-indentation-offsets-from-buffer (buffer rules basic-offset)
   (let ((result '()))
     (with-current-buffer buffer
-      (save-excursion
-        (sqlind-ert-indent-buffer
-         (or rules (default-value 'sqlind-indentation-offsets-alist))
-         (or basic-offset (default-value 'sqlind-basic-offset)))
-        (goto-char (point-min))
-        (setq result (cons (current-indentation) result))
-        (while (= (forward-line 1) 0)
-          (setq result (cons (current-indentation) result)))))
+      (sqlind-ert-indent-buffer
+       (or rules (default-value 'sqlind-indentation-offsets-alist))
+       (or basic-offset (default-value 'sqlind-basic-offset)))
+      (goto-char (point-min))
+      (setq result (cons (current-indentation) result))
+      (while (= (forward-line 1) 0)
+        (setq result (cons (current-indentation) result))))
     (reverse result)))
 
 
@@ -111,7 +120,12 @@ inddent the whole buffer."
     (setq sqlind-indentation-offsets-alist rules))
   (when basic-offset
     (setq sqlind-basic-offset basic-offset))
+  ;; To ensure we are consistent in our offsets regardless of he users
+  ;; personal tab choices, setup spaces only indentation for this buffer.
+  (setq indent-tabs-mode nil)
+  (untabify (point-min) (point-max))
   (indent-region (point-min) (point-max))
+  ;; (save-buffer) ; if you want to see the result of this command
   (set-buffer-modified-p nil))
 
 (defun sqlind-ert-check-line-syntax (expected)
@@ -144,20 +158,21 @@ previously saved syntax data in DATA-FILE.  An error is signaled
 if there is a mismatch."
   (let ((syntax-data (sqlind-ert-read-data data-file)))
     (with-current-buffer (find-file sql-file)
-      (save-excursion
-        ;; NOTE: indent the buffer according to default rules first -- this
-        ;; affects anchor points.
-        (sqlind-ert-indent-buffer
-         (default-value 'sqlind-indentation-offsets-alist)
-         (default-value 'sqlind-basic-offset))
-        (goto-char (point-min))
-        (should (consp syntax-data))    ; "premature end of syntax-data"
+      (sqlind-minor-mode 1)             ; ensure this is enabled
+      ;; NOTE: indent the buffer according to default rules first -- this
+      ;; affects anchor points.
+      ;; (message "sql-product: %s" sql-product)
+      (sqlind-ert-indent-buffer
+       (default-value 'sqlind-indentation-offsets-alist)
+       (default-value 'sqlind-basic-offset))
+      (goto-char (point-min))
+      (should (consp syntax-data))    ; "premature end of syntax-data"
+      (sqlind-ert-check-line-syntax (car syntax-data))
+      (setq syntax-data (cdr syntax-data))
+      (while (= (forward-line 1) 0)
+        (should (consp syntax-data))  ; "premature end of syntax-data"
         (sqlind-ert-check-line-syntax (car syntax-data))
-        (setq syntax-data (cdr syntax-data))
-        (while (= (forward-line 1) 0)
-          (should (consp syntax-data))  ; "premature end of syntax-data"
-          (sqlind-ert-check-line-syntax (car syntax-data))
-          (setq syntax-data (cdr syntax-data)))))))
+        (setq syntax-data (cdr syntax-data))))))
 
 (defun sqlind-ert-check-line-indentation (expected)
   "Check that the current line has EXPECTED indentation.
@@ -180,6 +195,8 @@ information read from DATA-FILE (as generated by
 `sqlind-collect-indentation-offsets-from-buffer')"
   (let ((indentation-data (sqlind-ert-read-data data-file)))
     (with-current-buffer (find-file sql-file)
+      (sqlind-minor-mode 1)
+      ;; (message "sql-product: %s" sql-product)
       (sqlind-ert-indent-buffer rules basic-offset)
       (goto-char (point-min))
       (should (consp indentation-data))    ; "premature end of indentation-data
@@ -258,3 +275,4 @@ information read from DATA-FILE (as generated by
 (ert-deftest sqlind-ert-pr19 ()
   (sqlind-ert-check-file-syntax "test-data/pr19.sql" "test-data/pr19-syn.eld"))
 
+;;; sql-indent-test.el ends here
