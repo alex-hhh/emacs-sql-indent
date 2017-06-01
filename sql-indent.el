@@ -2010,7 +2010,7 @@ determine how to indent each type of syntactic element."
 ;;;; Alignment rules
 
 (defvar sqlind-align-rules
-  '(;; Line up the two side of arrow =>
+  `(;; Line up the two side of arrow =>
     (sql-arrow-lineup
      (regexp . "\\(\\s-*\\)=>\\(\\s-*\\)")
      (modes quote (sql-mode))
@@ -2041,6 +2041,17 @@ determine how to indent each type of syntactic element."
     ;; Line up the two sides of an equal sign in an update expression
     (sql-equals
      (regexp . "[^:]\\(\\s-*\\)=\\(\\s-*\\)[^>]")
+     (modes quote (sql-mode))
+     (group 1 2)
+     (case-fold . t)
+     (valid . ,(function (lambda ()
+     			   (save-excursion
+     			     (goto-char (match-end 1))
+     			     (not (nth 3 (syntax-ppss (point))))))))
+     (repeat . t))
+    ;; Line up the two sides of piped string
+    (sql-pipes
+     (regexp . "[^:]\\(\\s-*\\)||\\(\\s-*\\)[^>]")
      (modes quote (sql-mode))
      (group 1 2)
      (case-fold . t)
