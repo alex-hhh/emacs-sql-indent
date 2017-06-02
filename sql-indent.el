@@ -270,7 +270,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (not (eq (point) (or limit (point-min))))
         (when (re-search-backward
-               ";\\|\\b\\(declare\\|begin\\|cursor\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
+               ";\\|:=\\|\\b\\(declare\\|begin\\|cursor\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
@@ -291,6 +291,11 @@ But don't go before LIMIT."
                        (throw 'done candidate-pos)))
                     ((looking-at "\\b\\(if\\|elsif\\)\\b")
                      ;; statement begins at the start of the keyword
+                     (throw 'done (point)))
+                    ((looking-at ":=")
+                     ;; assignment statements start at the assigned variable
+                     (sqlind-backward-syntactic-ws)
+                     (forward-sexp -1)
                      (throw 'done (point)))
                     ((not (sqlind-in-comment-or-string (point)))
                      (throw 'done candidate-pos))))))))))
