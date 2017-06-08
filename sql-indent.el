@@ -337,7 +337,7 @@ But don't go before LIMIT."
 ;;;;; Find the syntax and beginning of the current block
 
 (defconst sqlind-end-statement-regexp
-  "end\\_>\\(?:[ \n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \n\r\f]*\\)\\([a-z0-9_]+\\)?"
+  "\\_<end_\\>\\(?:[ \n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \n\r\f]*\\)\\([a-z0-9_]+\\)?"
   "Match an end of statement.
 Matches a string like \"end if|loop|case MAYBE-LABEL\".")
 
@@ -621,7 +621,7 @@ See also `sqlind-beginning-of-block'"
 	    ;; we are creating a non-code block thing: table, view,
 	    ;; index, etc.  These things only exist at toplevel.
 	    (unless (null sqlind-end-stmt-stack)
-	      (throw 'finised
+	      (throw 'finished
 		(list 'syntax-error "nested create statement" (point) (point))))
 	    (throw 'finished (list 'create-statement what name))))))))
 
