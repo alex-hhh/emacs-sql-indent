@@ -166,9 +166,13 @@ select aaa,
     (delete-clause 0)
     (update-clause 0)
     (case-clause-item-cont 0)
+    (begin-block 0)
+    (case-clause +)
     (package +)
     (package-body +)
-    (nested-statement-continuation  +)
+    (nested-statement-continuation 1)
+    (string-continuation 0) ;; or shoult it be a begining of line or aligned with the previous block ?
+                            ;; Anyway. It's really *BAD* to continue a string accross lines.
     (select-column-continuation sqlind-indent-select-column
                                 sqlind-adjust-operator
                                 sqlind-lone-semicolon)
@@ -180,7 +184,7 @@ select aaa,
                       sqlind-adjust-operator
 		      sqlind-left-justify-logical-operator
                       sqlind-lone-semicolon)
-    (in-insert-clause sqlind-lineup-to-clause-end
+    (in-insert-clause +
                       sqlind-adjust-operator
 		      sqlind-left-justify-logical-operator
                       sqlind-lone-semicolon)
@@ -188,8 +192,7 @@ select aaa,
                       sqlind-adjust-operator
 		      sqlind-left-justify-logical-operator
                       sqlind-lone-semicolon)
-    (select-table-continuation sqlind-indent-select-table +
-                               sqlind-lone-semicolon)
+    (select-table-continuation + sqlind-lone-semicolon)
     ;; rest picked up from the original indentation offsets
     ,@sqlind-default-indentation-offsets-alist)
   "Align sql code like this :
