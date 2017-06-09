@@ -337,7 +337,7 @@ But don't go before LIMIT."
 ;;;;; Find the syntax and beginning of the current block
 
 (defconst sqlind-end-statement-regexp
-  "\\_<end_\\>\\(?:[ \n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \n\r\f]*\\)\\([a-z0-9_]+\\)?"
+  "\\_<end\\_>\\(?:[ \f\t\r\n]*\\)\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?\\(?:[ \f\t\r\n]*\\)\\([a-z0-9_]+\\)?"
   "Match an end of statement.
 Matches a string like \"end if|loop|case MAYBE-LABEL\".")
 
@@ -1323,7 +1323,7 @@ procedure block."
             ;; create a block-end syntax if needed
 
             ((and (not (eq syntax-symbol 'comment-continuation))
-                  (looking-at "end[ \t\r\n\f]*\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?[ \t\r\n\f]*\\(\\_<\\(?:[a-z0-9_]+\\)\\_>\\)?"))
+                  (looking-at sqlind-end-statement-regexp))
              ;; so we see the syntax which closes the current block.  We still
              ;; need to check if the current end is a valid closing block
              (let ((kind (or (sqlind-match-string 1) ""))
