@@ -86,6 +86,9 @@ constituents so that syntactic navigation works over them.")
 ;; `sqlind-show-syntax-of-line'.  This is only useful if you want to debug this
 ;; package or are just curious.
 
+(defconst sqlind-ws-regexp "[ \t\r\n\f\v]"
+  "Regexp to match white spaces.")
+
 (defconst sqlind-comment-start-skip "\\(--+\\|/\\*+\\)\\s *"
   "Regexp to match the start of a SQL comment.")
 
@@ -108,7 +111,7 @@ Leave point on the first character which is not syntactic
 whitespace, or at the beginning of the buffer."
   (catch 'done
     (while t
-      (skip-chars-backward " \t\n\r\f\v")
+      (skip-chars-backward " \t\r\n\f\v")
       (unless (eq (point) (point-min))
 	(forward-char -1))
       (let ((pps (syntax-ppss (point))))
@@ -657,7 +660,7 @@ See also `sqlind-beginning-of-block'"
 	      (forward-word -1)
 	      (when (looking-at "replace")
 		(forward-word -2))
-	      (when (and (looking-at "create\\([ \t\r\n\f]+or[ \t\r\n\f]+replace\\)?")
+	      (when (and (looking-at (concat "create\\(" sqlind-ws-regexp "+or" sqlind-ws-regexp "+replace\\)?"))
 			 (not (sqlind-in-comment-or-string (point))))
 		(setq real-start (point))))
 	    (goto-char real-start))
@@ -767,21 +770,21 @@ reverse order (a stack) and is used to skip over nested blocks."
 (defconst sqlind-select-clauses-regexp
   (concat
    "\\_<\\("
-   "\\(union\\|intersect\\|minus\\)?[ \t\r\n\f]*select\\|"
-   "\\(bulk[ \t\r\n\f]+collect[ \t\r\n\f]+\\)?into\\|"
+   "\\(union\\|intersect\\|minus\\)?" sqlind-ws-regexp "*select\\|"
+   "\\(bulk" sqlind-ws-regexp "+collect" sqlind-ws-regexp "+\\)?into\\|"
    "from\\|"
    "where\\|"
-   "order[ \t\r\n\f]+by\\|"
+   "order" sqlind-ws-regexp "+by\\|"
    "having\\|"
-   "group[ \t\r\n\f]+by\\|"
-   "connect[ \t\r\n\f]+by\\|"
-   "start[ \t\r\n\f]+with"
+   "group" sqlind-ws-regexp "+by\\|"
+   "connect" sqlind-ws-regexp "+by\\|"
+   "start" sqlind-ws-regexp "+with"
    "\\)\\_>"))
 
 (defconst sqlind-select-join-regexp
   (concat "\\b"
 	  (regexp-opt '("inner" "left" "right" "natural" "cross") t)
-	  "[ \t\r\n\f]*join"
+	  sqlind-ws-regexp "*join"
 	  "\\b"))
 
 (defun sqlind-syntax-in-select (pos start)
@@ -801,7 +804,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-select-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (cond
 	      ((looking-at "select\\(\\s *\\_<\\(top\\s +[0-9]+\\|distinct\\|unique\\)\\_>\\)?")
@@ -857,7 +860,7 @@ reverse order (a stack) and is used to skip over nested blocks."
 ;;;;; Determine the syntax inside an insert statement
 
 (defconst sqlind-insert-clauses-regexp
-   "\\_<\\(insert\\([ \t\r\n\f]+into\\)?\\|values\\|select\\)\\_>")
+   (concat "\\_<\\(insert\\(" sqlind-ws-regexp "+into\\)?\\|values\\|select\\)\\_>"))
 
 (defun sqlind-syntax-in-insert (pos start)
   "Return the syntax at POS which is inside an \"insert\" statement at START."
@@ -885,7 +888,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-insert-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (throw 'finished
 	      (if (looking-at "select")
@@ -896,7 +899,8 @@ reverse order (a stack) and is used to skip over nested blocks."
 ;;;;; Determine the syntax inside a delete statement
 
 (defconst sqlind-delete-clauses-regexp
-   "\\_<\\(delete\\([ \t\r\n\f]+from\\)?\\|where\\|returning\\|\\(bulk[ \t\r\n\f]collect[ \t\r\n\f]\\)?into\\)\\_>")
+  (concat "\\_<\\(delete\\(" sqlind-ws-regexp "+from\\)?\\|where\\|returning\\|\\(bulk"
+	   sqlind-ws-regexp "collect" sqlind-ws-regexp "\\)?into\\)\\_>"))
 
 (defun sqlind-syntax-in-delete (pos start)
   "Return the syntax at POS which is inside a \"delete\" statement at START."
@@ -912,7 +916,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-delete-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (throw 'finished
 	      (cons (list 'in-delete-clause clause) match-pos))))))))
@@ -937,7 +941,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-update-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (throw 'finished
 	      (cons (list 'in-update-clause clause) match-pos))))))))
@@ -1045,7 +1049,7 @@ KIND is the symbol determining the type of the block ('if, 'loop,
 		    (goto-char (cdar then-context))
 		    (cond
 		      ((looking-at "when\\_>\\|then\\_>") t)
-		      ((looking-at "\\(?:<<\\([a-z0-9_]+\\)>>[ \t\r\n\f]*\\)?\\_<\\(if\\|case\\)\\_>")
+		      ((looking-at (concat "\\(?:<<\\([a-z0-9_]+\\)>>" sqlind-ws-regexp "*\\)?\\_<\\(if\\|case\\)\\_>"))
 		       (throw 'found t))
 		      (t
 		       (throw 'done
@@ -1253,7 +1257,7 @@ procedure block."
                      ;; NOTE: We only catch here "CASE" expressions, not CASE
                      ;; statements.  We also catch assignments with case (var
                      ;; := CASE ...)
-                     ((looking-at "\\(\\w+[ \t\r\n\f]+:=[ \t\r\n\f]+\\)?\\(case\\)")
+                     ((looking-at (concat "\\(\\w+" sqlind-ws-regexp "+:=[ \t\r\n\f]+\\)?\\(case\\)"))
                       (when (< (match-beginning 2) pos)
                         (push (sqlind-syntax-in-case pos (match-beginning 2)) context)))
                      ((looking-at "with")
