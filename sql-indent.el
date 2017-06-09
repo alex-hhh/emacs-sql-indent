@@ -340,7 +340,7 @@ But don't go before LIMIT."
 ;;;;; Find the syntax and beginning of the current block
 
 (defconst sqlind-end-statement-regexp
-  "\\_<end\\_>\\(?:[ \f\t\r\n]*\\)\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?\\(?:[ \f\t\r\n]*\\)\\([a-z0-9_]+\\)?"
+  (concat "\\_<end\\_>\\(?:" sqlind-ws-regexp "*\\)\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?\\(?:" sqlind-ws-regexp "*\\)\\([a-z0-9_]+\\)?")
   "Match an end of statement.
 Matches a string like \"end if|loop|case MAYBE-LABEL\".")
 
@@ -390,7 +390,7 @@ See also `sqlind-beginning-of-block'"
 	;; a then keyword only starts a block when it is part of an
 	;; if, case/when or exception statement
 	(cond
-	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \n\r\f]*\\)\\(\\(?:els\\)?if\\)\\_>")
+	  ((looking-at (concat "\\(<<[a-z0-9_]+>>\\)?\\(?:" sqlind-ws-regexp "*\\)\\(\\(?:els\\)?if\\)\\_>"))
 	   (let ((if-label (sqlind-match-string 1))
 		 (if-kind (intern (sqlind-match-string 2)))) ; can be if or elsif
 	     (setq if-label (if if-label (substring if-label 2 -2) ""))
@@ -406,7 +406,7 @@ See also `sqlind-beginning-of-block'"
 		       (throw 'finished
 			 (list 'syntax-error
 			       "bad closing for if block" (point) pos))))))))
-	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \n\r\f]*\\)case\\_>")
+	  ((looking-at (concant "\\(<<[a-z0-9_]+>>\\)?\\(?:" sqlind-ws-regexp "*\\)case\\_>"))
 	   ;; find the nearest when block, but only if there are no
 	   ;; end statements in the stack
 	   (let ((case-label (sqlind-match-string 1)))
@@ -588,7 +588,7 @@ See also `sqlind-beginning-of-block'"
 (defun sqlind-maybe-create-statement ()
   "If (point) is on a CREATE statement, report its syntax.
 See also `sqlind-beginning-of-block'"
-  (when (looking-at "create\\_>\\(?:[ \n\r\f]+\\)\\(or\\(?:[ \n\r\f]+\\)replace\\_>\\)?")
+  (when (looking-at (concat "create\\_>\\(?:" sqlind-ws-regexp "+\\)\\(or\\(?:" sqlind-ws-regexp "+\\)replace\\_>\\)?"))
     (prog1 t                            ; make sure we return t
       (save-excursion
 	;; let's see what are we creating
@@ -632,7 +632,7 @@ See also `sqlind-beginning-of-block'"
   "If (point) is on a procedure definition statement, report its syntax.
 See also `sqlind-beginning-of-block'"
   (catch 'exit
-    (when (looking-at "\\(procedure\\|function\\)\\(?:[ \n\r\f]+\\)\\([a-z0-9_]+\\)")
+    (when (looking-at (concat "\\(procedure\\|function\\)\\(?:" sqlind-ws-regexp "+\\)\\([a-z0-9_]+\\)"))
       (prog1 t                          ; make sure we return t
 	(let ((proc-name (sqlind-match-string 2)))
 	  ;; need to find out if this is a procedure/function
@@ -644,7 +644,7 @@ See also `sqlind-beginning-of-block'"
 	    (when (looking-at "(")
 	      (ignore-errors (forward-sexp 1))
 	      (sqlind-forward-syntactic-ws))
-	    (when (looking-at "return\\(?:[ \n\r\f]+\\)\\([a-z0-9_]+\\)")
+	    (when (looking-at (concat "return\\(?:" sqlind-ws-regexp "+\\)\\([a-z0-9_]+\\)"))
 	      (goto-char (match-end 0))
 	      (sqlind-forward-syntactic-ws))
 	    (when (looking-at ";")
@@ -1257,7 +1257,7 @@ procedure block."
                      ;; NOTE: We only catch here "CASE" expressions, not CASE
                      ;; statements.  We also catch assignments with case (var
                      ;; := CASE ...)
-                     ((looking-at (concat "\\(\\w+" sqlind-ws-regexp "+:=[ \t\r\n\f]+\\)?\\(case\\)"))
+                     ((looking-at (concat "\\(\\w+" sqlind-ws-regexp "+:=" sqlind-ws-regexp "+\\)?\\(case\\)"))
                       (when (< (match-beginning 2) pos)
                         (push (sqlind-syntax-in-case pos (match-beginning 2)) context)))
                      ((looking-at "with")
