@@ -131,7 +131,7 @@ whitespace, or at the end of the buffer."
       (goto-char (nth 8 pps))))
   (catch 'done
     (while t
-      (skip-chars-forward " \t\n\r\f\v")
+      (skip-chars-forward " \t\r\n\f\v")
       (cond ((looking-at sqlind-comment-start-skip) (forward-comment 1))
             ;; a slash ("/") by itself is a SQL*plus directive and
             ;; counts as whitespace
