@@ -406,7 +406,7 @@ See also `sqlind-beginning-of-block'"
 		       (throw 'finished
 			 (list 'syntax-error
 			       "bad closing for if block" (point) pos))))))))
-	  ((looking-at (concant "\\(<<[a-z0-9_]+>>\\)?\\(?:" sqlind-ws-regexp "*\\)case\\_>"))
+	  ((looking-at (concat "\\(<<[a-z0-9_]+>>\\)?\\(?:" sqlind-ws-regexp "*\\)case\\_>"))
 	   ;; find the nearest when block, but only if there are no
 	   ;; end statements in the stack
 	   (let ((case-label (sqlind-match-string 1)))
