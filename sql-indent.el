@@ -86,6 +86,9 @@ constituents so that syntactic navigation works over them.")
 ;; `sqlind-show-syntax-of-line'.  This is only useful if you want to debug this
 ;; package or are just curious.
 
+(defconst sqlind-ws-regexp "[ \t\r\n\f\v]"
+  "Regexp to match white spaces.")
+
 (defconst sqlind-comment-start-skip "\\(--+\\|/\\*+\\)\\s *"
   "Regexp to match the start of a SQL comment.")
 
@@ -108,7 +111,7 @@ Leave point on the first character which is not syntactic
 whitespace, or at the beginning of the buffer."
   (catch 'done
     (while t
-      (skip-chars-backward " \t\n\r\f\v")
+      (skip-chars-backward " \t\r\n\f\v")
       (unless (eq (point) (point-min))
 	(forward-char -1))
       (let ((pps (syntax-ppss (point))))
@@ -128,7 +131,7 @@ whitespace, or at the end of the buffer."
       (goto-char (nth 8 pps))))
   (catch 'done
     (while t
-      (skip-chars-forward " \t\n\r\f\v")
+      (skip-chars-forward " \t\r\n\f\v")
       (cond ((looking-at sqlind-comment-start-skip) (forward-comment 1))
             ;; a slash ("/") by itself is a SQL*plus directive and
             ;; counts as whitespace
@@ -337,7 +340,7 @@ But don't go before LIMIT."
 ;;;;; Find the syntax and beginning of the current block
 
 (defconst sqlind-end-statement-regexp
-  "\\_<end_\\>\\(?:[ \n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \n\r\f]*\\)\\([a-z0-9_]+\\)?"
+  (concat "\\_<end\\_>\\(?:" sqlind-ws-regexp "*\\)\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?\\(?:" sqlind-ws-regexp "*\\)\\([a-z0-9_]+\\)?")
   "Match an end of statement.
 Matches a string like \"end if|loop|case MAYBE-LABEL\".")
 
@@ -387,7 +390,7 @@ See also `sqlind-beginning-of-block'"
 	;; a then keyword only starts a block when it is part of an
 	;; if, case/when or exception statement
 	(cond
-	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \n\r\f]*\\)\\(\\(?:els\\)?if\\)\\_>")
+	  ((looking-at (concat "\\(<<[a-z0-9_]+>>\\)?\\(?:" sqlind-ws-regexp "*\\)\\(\\(?:els\\)?if\\)\\_>"))
 	   (let ((if-label (sqlind-match-string 1))
 		 (if-kind (intern (sqlind-match-string 2)))) ; can be if or elsif
 	     (setq if-label (if if-label (substring if-label 2 -2) ""))
@@ -403,7 +406,7 @@ See also `sqlind-beginning-of-block'"
 		       (throw 'finished
 			 (list 'syntax-error
 			       "bad closing for if block" (point) pos))))))))
-	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \n\r\f]*\\)case\\_>")
+	  ((looking-at (concat "\\(<<[a-z0-9_]+>>\\)?\\(?:" sqlind-ws-regexp "*\\)case\\_>"))
 	   ;; find the nearest when block, but only if there are no
 	   ;; end statements in the stack
 	   (let ((case-label (sqlind-match-string 1)))
@@ -585,7 +588,7 @@ See also `sqlind-beginning-of-block'"
 (defun sqlind-maybe-create-statement ()
   "If (point) is on a CREATE statement, report its syntax.
 See also `sqlind-beginning-of-block'"
-  (when (looking-at "create\\_>\\(?:[ \n\r\f]+\\)\\(or\\(?:[ \n\r\f]+\\)replace\\_>\\)?")
+  (when (looking-at (concat "create\\_>\\(?:" sqlind-ws-regexp "+\\)\\(or\\(?:" sqlind-ws-regexp "+\\)replace\\_>\\)?"))
     (prog1 t                            ; make sure we return t
       (save-excursion
 	;; let's see what are we creating
@@ -629,7 +632,7 @@ See also `sqlind-beginning-of-block'"
   "If (point) is on a procedure definition statement, report its syntax.
 See also `sqlind-beginning-of-block'"
   (catch 'exit
-    (when (looking-at "\\(procedure\\|function\\)\\(?:[ \n\r\f]+\\)\\([a-z0-9_]+\\)")
+    (when (looking-at (concat "\\(procedure\\|function\\)\\(?:" sqlind-ws-regexp "+\\)\\([a-z0-9_]+\\)"))
       (prog1 t                          ; make sure we return t
 	(let ((proc-name (sqlind-match-string 2)))
 	  ;; need to find out if this is a procedure/function
@@ -641,7 +644,7 @@ See also `sqlind-beginning-of-block'"
 	    (when (looking-at "(")
 	      (ignore-errors (forward-sexp 1))
 	      (sqlind-forward-syntactic-ws))
-	    (when (looking-at "return\\(?:[ \n\r\f]+\\)\\([a-z0-9_]+\\)")
+	    (when (looking-at (concat "return\\(?:" sqlind-ws-regexp "+\\)\\([a-z0-9_]+\\)"))
 	      (goto-char (match-end 0))
 	      (sqlind-forward-syntactic-ws))
 	    (when (looking-at ";")
@@ -657,7 +660,7 @@ See also `sqlind-beginning-of-block'"
 	      (forward-word -1)
 	      (when (looking-at "replace")
 		(forward-word -2))
-	      (when (and (looking-at "create\\([ \t\r\n\f]+or[ \t\r\n\f]+replace\\)?")
+	      (when (and (looking-at (concat "create\\(" sqlind-ws-regexp "+or" sqlind-ws-regexp "+replace\\)?"))
 			 (not (sqlind-in-comment-or-string (point))))
 		(setq real-start (point))))
 	    (goto-char real-start))
@@ -767,21 +770,21 @@ reverse order (a stack) and is used to skip over nested blocks."
 (defconst sqlind-select-clauses-regexp
   (concat
    "\\_<\\("
-   "\\(union\\|intersect\\|minus\\)?[ \t\r\n\f]*select\\|"
-   "\\(bulk[ \t\r\n\f]+collect[ \t\r\n\f]+\\)?into\\|"
+   "\\(union\\|intersect\\|minus\\)?" sqlind-ws-regexp "*select\\|"
+   "\\(bulk" sqlind-ws-regexp "+collect" sqlind-ws-regexp "+\\)?into\\|"
    "from\\|"
    "where\\|"
-   "order[ \t\r\n\f]+by\\|"
+   "order" sqlind-ws-regexp "+by\\|"
    "having\\|"
-   "group[ \t\r\n\f]+by\\|"
-   "connect[ \t\r\n\f]+by\\|"
-   "start[ \t\r\n\f]+with"
+   "group" sqlind-ws-regexp "+by\\|"
+   "connect" sqlind-ws-regexp "+by\\|"
+   "start" sqlind-ws-regexp "+with"
    "\\)\\_>"))
 
 (defconst sqlind-select-join-regexp
   (concat "\\b"
 	  (regexp-opt '("inner" "left" "right" "natural" "cross") t)
-	  "[ \t\r\n\f]*join"
+	  sqlind-ws-regexp "*join"
 	  "\\b"))
 
 (defun sqlind-syntax-in-select (pos start)
@@ -801,7 +804,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-select-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (cond
 	      ((looking-at "select\\(\\s *\\_<\\(top\\s +[0-9]+\\|distinct\\|unique\\)\\_>\\)?")
@@ -857,7 +860,7 @@ reverse order (a stack) and is used to skip over nested blocks."
 ;;;;; Determine the syntax inside an insert statement
 
 (defconst sqlind-insert-clauses-regexp
-   "\\_<\\(insert\\([ \t\r\n\f]+into\\)?\\|values\\|select\\)\\_>")
+   (concat "\\_<\\(insert\\(" sqlind-ws-regexp "+into\\)?\\|values\\|select\\)\\_>"))
 
 (defun sqlind-syntax-in-insert (pos start)
   "Return the syntax at POS which is inside an \"insert\" statement at START."
@@ -885,7 +888,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-insert-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (throw 'finished
 	      (if (looking-at "select")
@@ -896,7 +899,8 @@ reverse order (a stack) and is used to skip over nested blocks."
 ;;;;; Determine the syntax inside a delete statement
 
 (defconst sqlind-delete-clauses-regexp
-   "\\_<\\(delete\\([ \t\r\n\f]+from\\)?\\|where\\|returning\\|\\(bulk[ \t\r\n\f]collect[ \t\r\n\f]\\)?into\\)\\_>")
+  (concat "\\_<\\(delete\\(" sqlind-ws-regexp "+from\\)?\\|where\\|returning\\|\\(bulk"
+	   sqlind-ws-regexp "collect" sqlind-ws-regexp "\\)?into\\)\\_>"))
 
 (defun sqlind-syntax-in-delete (pos start)
   "Return the syntax at POS which is inside a \"delete\" statement at START."
@@ -912,7 +916,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-delete-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (throw 'finished
 	      (cons (list 'in-delete-clause clause) match-pos))))))))
@@ -937,7 +941,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       (while (re-search-backward sqlind-update-clauses-regexp start t)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
-	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
+	  (setq clause (replace-regexp-in-string sqlind-ws-regexp " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (throw 'finished
 	      (cons (list 'in-update-clause clause) match-pos))))))))
@@ -1045,7 +1049,7 @@ KIND is the symbol determining the type of the block ('if, 'loop,
 		    (goto-char (cdar then-context))
 		    (cond
 		      ((looking-at "when\\_>\\|then\\_>") t)
-		      ((looking-at "\\(?:<<\\([a-z0-9_]+\\)>>[ \t\r\n\f]*\\)?\\_<\\(if\\|case\\)\\_>")
+		      ((looking-at (concat "\\(?:<<\\([a-z0-9_]+\\)>>" sqlind-ws-regexp "*\\)?\\_<\\(if\\|case\\)\\_>"))
 		       (throw 'found t))
 		      (t
 		       (throw 'done
@@ -1253,7 +1257,7 @@ procedure block."
                      ;; NOTE: We only catch here "CASE" expressions, not CASE
                      ;; statements.  We also catch assignments with case (var
                      ;; := CASE ...)
-                     ((looking-at "\\(\\w+[ \t\r\n\f]+:=[ \t\r\n\f]+\\)?\\(case\\)")
+                     ((looking-at (concat "\\(\\w+" sqlind-ws-regexp "+:=" sqlind-ws-regexp "+\\)?\\(case\\)"))
                       (when (< (match-beginning 2) pos)
                         (push (sqlind-syntax-in-case pos (match-beginning 2)) context)))
                      ((looking-at "with")
@@ -1323,7 +1327,7 @@ procedure block."
             ;; create a block-end syntax if needed
 
             ((and (not (eq syntax-symbol 'comment-continuation))
-                  (looking-at "end[ \t\r\n\f]*\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?[ \t\r\n\f]*\\(\\_<\\(?:[a-z0-9_]+\\)\\_>\\)?"))
+                  (looking-at sqlind-end-statement-regexp))
              ;; so we see the syntax which closes the current block.  We still
              ;; need to check if the current end is a valid closing block
              (let ((kind (or (sqlind-match-string 1) ""))
