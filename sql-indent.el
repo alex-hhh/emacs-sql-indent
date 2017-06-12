@@ -135,6 +135,18 @@ whitespace, or at the end of the buffer."
             ((looking-at "/\\s *$") (goto-char (match-end 0)))
             (t (throw 'done (point)))))))
 
+(defun sqlind-search-backward (start regexp limit)
+  "Search for REGEXP from START backward until LIMIT.
+Finds a match that is not inside a comment or string, moves point
+to the match and returns it. If no match is found, point is moved
+to LIMIT and nil is returned."
+  (goto-char start)
+  (catch 'done
+    (while (re-search-backward regexp limit 'noerror)
+      (unless (sqlind-in-comment-or-string (point))
+        (throw 'done (point))))
+    nil))
+
 (defun sqlind-match-string (pos)
   "Return the match data at POS in the current buffer.
 This is similar to `match-data', but the text is fetched without
@@ -410,12 +422,8 @@ See also `sqlind-beginning-of-block'"
 	     (setq case-label
 		   (if case-label (substring case-label 2 -2) ""))
 	     (if (null sqlind-end-stmt-stack)
-		 (let ((limit (point)))
-		   (goto-char start-pos)
-		   (while (re-search-backward "\\_<when\\_>" limit 'noerror)
-		     (unless (sqlind-in-comment-or-string (point))
-		       (throw 'finished
-			 (list 'in-block 'case case-label)))))
+                 (when (sqlind-search-backward start-pos "\\_<when\\_>" (point))
+                   (throw 'finished (list 'in-block 'case case-label)))
 		 ;; else
 		 (cl-destructuring-bind (pos kind label)
 		     (pop sqlind-end-stmt-stack)
@@ -671,10 +679,17 @@ See also `sqlind-beginning-of-block'"
 	      (throw 'finished
 		(list 'syntax-error "bad end label for defun" (point) pos)))))))))
 
+(defun sqlind-maybe-exception-statement ()
+  "If (point) is on an exception keyword, report its syntax.
+See also `sqlind-beginning-of-block'"
+  (when (and (looking-at "exception")
+             (null sqlind-end-stmt-stack))
+    (throw 'finished (list 'in-block 'exception))))
+
 (defconst sqlind-start-block-regexp
   (concat "\\(\\b"
 	  (regexp-opt '("if" "then" "else" "elsif" "loop"
-			"begin" "declare" "create"
+			"begin" "declare" "create" "exception"
 			"procedure" "function" "end" "case") t)
 	  "\\b\\)\\|)")
   "Regexp to match the start of a block.")
@@ -694,6 +709,7 @@ reverse order (a stack) and is used to skip over nested blocks."
             (sqlind-maybe-if-statement)
             (sqlind-maybe-case-statement)
             (sqlind-maybe-then-statement)
+            (sqlind-maybe-exception-statement)
             (sqlind-maybe-else-statement)
             (sqlind-maybe-loop-statement)
             (sqlind-maybe-begin-statement)
@@ -831,10 +847,9 @@ reverse order (a stack) and is used to skip over nested blocks."
 		 (when (or (looking-at "on")
 			   (progn (forward-word -1) (looking-at "on")))
 		   ;; look for the join start, that will be the anchor
-		   (while (re-search-backward sqlind-select-join-regexp start t)
-		     (unless (sqlind-in-comment-or-string (point))
-		       (throw 'finished
-			 (cons 'select-join-condition (point))))))
+                   (when (sqlind-search-backward (point) sqlind-select-join-regexp start)
+                     (throw 'finished
+                       (cons 'select-join-condition (point))))))
 
 		 ;; if this line starts with a ',' or the previous
 		 ;; line starts with a ',', we have a new table
@@ -847,7 +862,7 @@ reverse order (a stack) and is used to skip over nested blocks."
 
 		 ;; otherwise, we continue the table definition from
 		 ;; the previous line.
-		 (throw 'finished (cons 'select-table-continuation match-pos))))
+		 (throw 'finished (cons 'select-table-continuation match-pos)))
 
 	      (t
 	       (throw 'finished
@@ -1018,7 +1033,6 @@ KIND is the symbol determining the type of the block ('if, 'loop,
 	   (cond
 	     ((eq block-kind 'exception)
 	      (goto-char anchor)
-	      (forward-line -1)
 	      (throw 'done
 		(sqlind-refine-end-syntax
 		 end-kind end-label end-pos (sqlind-syntax-of-line))))
@@ -1122,6 +1136,182 @@ KIND is the symbol determining the type of the block ('if, 'loop,
 
 ;;;;; sqlind-syntax-of-line
 
+(defun sqlind-refine-syntax (context pos have-block-context)
+  "Refine a basic syntax CONTEXT at POS.
+CONTEXT is a syntactic context obtained by looking at the
+statement start and block start, see `sqlind-syntax-of-line'.  We
+refine it by looking at the contents of the current line and the
+contents of the anchor.
+
+HAVE-BLOCK-CONTEXT indicates that we are indenting a statement,
+not a statement-continuation POS is the same as the
+`sqlind-beginning-of-statement'."
+  (let ((syntax (sqlind-syntax context))
+        (anchor (sqlind-anchor-point context))
+        (syntax-symbol (sqlind-syntax-symbol context)))
+    
+    (goto-char pos)
+    
+    (cond
+      ;; do we start a comment?
+      ((and (not (eq syntax-symbol 'comment-continuation))
+            (looking-at sqlind-comment-start-skip))
+       (push (cons 'comment-start anchor) context))
+
+      ;; Refine a statement continuation
+      ((memq syntax-symbol '(statement-continuation nested-statement-continuation))
+
+       ;; a (nested) statement continuation which starts with loop
+       ;; or then is a block start
+       (if (and have-block-context (looking-at "\\(loop\\|then\\|when\\)\\_>"))
+           (push (cons (list 'block-start (intern (sqlind-match-string 0))) anchor)
+                 context)
+         ;; else
+         (goto-char anchor)
+         (when (eq syntax 'nested-statement-continuation)
+           (forward-char 1)
+           (skip-chars-forward " \t\r\n\f\v")
+           (setq anchor (point)))
+
+         ;; when all we have before `pos' is a label, we have a
+         ;; labeled-statement-start
+         (when (looking-at "<<\\([a-z0-9_]+\\)>>")
+           (goto-char (match-end 0))
+           (forward-char 1)
+           (sqlind-forward-syntactic-ws)
+           (when (eq (point) pos)
+             (push (cons 'labeled-statement-start anchor) context)))
+
+         (when (looking-at "when\\_>")
+           (let* ((acontext (sqlind-syntax-of-line))
+                  (asyntax (sqlind-syntax acontext)))
+             (cond ((equal asyntax '(in-block exception ""))
+                    (push (cons '(in-block exception-handler "") (point)) context))
+                   ((equal asyntax '(block-start when))
+                    ;; Refine again in the context of the when line
+                    (setq context (sqlind-refine-syntax (cdr acontext) pos have-block-context))))))
+
+         ;; maybe we have a DML statement (select, insert, update and
+         ;; delete)
+
+         ;; skip a cursor definition if it is before our point, in the
+         ;; following format:
+         ;;
+         ;; CURSOR name IS
+         ;; CURSOR name type IS
+         (when (looking-at "cursor\\b")
+           (let ((origin (point)))
+             (forward-sexp 3)
+             (sqlind-forward-syntactic-ws)
+             (when (looking-at "is\\b")
+               (goto-char (match-end 0))
+               (sqlind-forward-syntactic-ws))
+             (unless (<= (point) pos)
+               (goto-char origin))))
+
+         ;; skip a forall statement if it is before our point
+         (when (looking-at "forall\\b")
+           (when (re-search-forward "\\b\\(select\\|update\\|delete\\|insert\\)\\b" pos 'noerror)
+             (goto-char (match-beginning 0))))
+
+         ;; only check for syntax inside DML clauses if we are not
+         ;; at the start of one.
+         (when (< (point) pos)
+           (cond
+             ;; NOTE: We only catch here "CASE" expressions, not CASE
+             ;; statements.  We also catch assignments with case (var
+             ;; := CASE ...)
+             ((looking-at "\\(\\w+[ \t\r\n\f]+:=[ \t\r\n\f]+\\)?\\(case\\)")
+              (when (< (match-beginning 2) pos)
+                (push (sqlind-syntax-in-case pos (match-beginning 2)) context)))
+             ((looking-at "with")
+              (push (sqlind-syntax-in-with pos (point)) context))
+             ((looking-at "select")
+              (push (sqlind-syntax-in-select pos (point)) context))
+             ((looking-at "insert")
+              (push (sqlind-syntax-in-insert pos (point)) context))
+             ((looking-at "delete")
+              (push (sqlind-syntax-in-delete pos (point)) context))
+             ((looking-at "update")
+              (push (sqlind-syntax-in-update pos (point)) context))))
+
+         (when (eq (sqlind-syntax-symbol context) 'select-column-continuation)
+           (let ((cdef (sqlind-column-definition-start pos (sqlind-anchor-point context))))
+             (when cdef
+               (save-excursion
+                 (goto-char cdef)
+                 (when (looking-at "case")
+                   (push (sqlind-syntax-in-case pos (point)) context))))))
+
+         ))
+
+    ;; create block start syntax if needed
+
+    ((and (eq syntax-symbol 'in-block)
+          (memq (nth 1 syntax) '(if elsif then case))
+          (looking-at "\\(then\\|\\(els\\(e\\|if\\)\\)\\)\\_>"))
+     (let ((what (intern (sqlind-match-string 0))))
+       ;; the only invalid combination is a then statement in
+       ;; an (in-block "then") context
+       (unless (and (eq what 'then) (equal (nth 1 syntax) 'then))
+         (push (cons (list 'block-start what) anchor) context))))
+
+    ((and (eq syntax-symbol 'in-block)
+          (eq (nth 1 syntax) 'exception)
+          (not (looking-at "when\\_>")))
+     (save-excursion
+       (when (sqlind-search-backward pos "when\\_>" anchor)
+         (push (cons (list 'in-block 'exception-handler) (point)) context))))
+
+    ;; note that begin is not a block-start in a 'in-begin-block
+    ;; context
+    ((and (memq syntax-symbol '(defun-start declare-statement toplevel
+                                package package-body))
+          (looking-at "begin\\_>"))
+     (push (cons (list 'block-start 'begin) anchor) context))
+
+    ((and (memq syntax-symbol '(defun-start package package-body))
+          (looking-at "\\(is\\|as\\)\\_>"))
+     (push (cons (list 'block-start 'is-or-as) anchor) context))
+
+    ((and (memq syntax-symbol '(in-begin-block in-block))
+          (looking-at "exception\\_>"))
+     (push (cons (list 'block-start 'exception) anchor) context))
+
+    ((and (eq syntax-symbol 'in-block)
+          (memq (nth 1 syntax) '(then case)))
+     (if (looking-at "when\\_>")
+         (push (cons (list 'block-start 'when) anchor) context)
+       ;; NOTE: the "when" case is handed above
+       (when (sqlind-search-backward pos "when\\_>" anchor)
+         (push (cons '(in-block when) (point)) context))))
+
+    ;; indenting the select clause inside a view
+    ((and (eq syntax-symbol 'create-statement)
+          (eq (nth 1 syntax) 'view))
+     (goto-char anchor)
+     (catch 'done
+       (while (re-search-forward "\\bselect\\b" pos 'noerror)
+         (goto-char (match-beginning 0))
+         (when (sqlind-same-level-statement (point) anchor)
+           (push (sqlind-syntax-in-select pos (point)) context)
+           (throw 'done nil))
+         (goto-char (match-end 0)))))
+
+    ;; create a block-end syntax if needed
+
+    ((and (not (eq syntax-symbol 'comment-continuation))
+          (looking-at "end[ \t\r\n\f]*\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?[ \t\r\n\f]*\\(\\_<\\(?:[a-z0-9_]+\\)\\_>\\)?"))
+     ;; so we see the syntax which closes the current block.  We still
+     ;; need to check if the current end is a valid closing block
+     (let ((kind (or (sqlind-match-string 1) ""))
+           (label (or (sqlind-match-string 2) "")))
+       (push (sqlind-refine-end-syntax
+              (if (equal kind "") nil (intern kind))
+              label (point) context)
+             context))))
+  context))
+
 (defun sqlind-syntax-of-line ()
   "Return the syntax at the start of the current line.
 The function returns a list of (SYNTAX . ANCHOR) cons cells.
@@ -1185,154 +1375,8 @@ procedure block."
 
         ;; now let's refine the syntax by adding info about the current line
         ;; into the mix.
+        (sqlind-refine-syntax  context pos have-block-context)))))
 
-        (let ((syntax (sqlind-syntax context))
-              (anchor (sqlind-anchor-point context))
-              (syntax-symbol (sqlind-syntax-symbol context)))
-          
-          (goto-char pos)
-          
-          (cond
-            ;; do we start a comment?
-            ((and (not (eq syntax-symbol 'comment-continuation))
-                  (looking-at sqlind-comment-start-skip))
-             (push (cons 'comment-start anchor) context))
-
-            ;; Refine a statement continuation
-            ((memq syntax-symbol '(statement-continuation nested-statement-continuation))
-
-             ;; a (nested) statement continuation which starts with loop
-             ;; or then is a block start
-             (if (and have-block-context (looking-at "\\(loop\\|then\\|when\\)\\_>"))
-                 (push (cons (list 'block-start (intern (sqlind-match-string 0))) anchor)
-                       context)
-	       ;; else
-	       (goto-char anchor)
-	       (when (eq syntax 'nested-statement-continuation)
-		 (forward-char 1)
-		 (skip-chars-forward " \t\r\n\f\v")
-		 (setq anchor (point)))
-
-	       ;; when all we have before `pos' is a label, we have a
-	       ;; labeled-statement-start
-	       (if (looking-at "<<\\([a-z0-9_]+\\)>>")
-		   (progn
-		     (goto-char (match-end 0))
-		     (forward-char 1)
-                     (sqlind-forward-syntactic-ws)
-		     (when (eq (point) pos)
-		       (push (cons 'labeled-statement-start anchor) context)))
-
-                 ;; else, maybe we have a DML statement (select, insert,
-                 ;; update and delete)
-
-                 ;; skip a cursor definition if it is before our point, in the
-                 ;; following format:
-                 ;;
-                 ;; CURSOR name IS
-                 ;; CURSOR name type IS
-                 (when (looking-at "cursor\\b")
-                   (let ((origin (point)))
-                     (forward-sexp 3)
-                     (sqlind-forward-syntactic-ws)
-                     (when (looking-at "is\\b")
-                       (goto-char (match-end 0))
-                       (sqlind-forward-syntactic-ws))
-                     (unless (<= (point) pos)
-                       (goto-char origin))))
-
-                 ;; skip a forall statement if it is before our point
-                 (when (looking-at "forall\\b")
-                   (when (re-search-forward "\\b\\(select\\|update\\|delete\\|insert\\)\\b" pos 'noerror)
-                     (goto-char (match-beginning 0))))
-
-                 ;; only check for syntax inside DML clauses if we are not
-                 ;; at the start of one.
-                 (when (< (point) pos)
-                   (cond
-                     ;; NOTE: We only catch here "CASE" expressions, not CASE
-                     ;; statements.  We also catch assignments with case (var
-                     ;; := CASE ...)
-                     ((looking-at "\\(\\w+[ \t\r\n\f]+:=[ \t\r\n\f]+\\)?\\(case\\)")
-                      (when (< (match-beginning 2) pos)
-                        (push (sqlind-syntax-in-case pos (match-beginning 2)) context)))
-                     ((looking-at "with")
-                      (push (sqlind-syntax-in-with pos (point)) context))
-                     ((looking-at "select")
-                      (push (sqlind-syntax-in-select pos (point)) context))
-                     ((looking-at "insert")
-                      (push (sqlind-syntax-in-insert pos (point)) context))
-                     ((looking-at "delete")
-                      (push (sqlind-syntax-in-delete pos (point)) context))
-                     ((looking-at "update")
-                      (push (sqlind-syntax-in-update pos (point)) context))))
-
-                 (when (eq (sqlind-syntax-symbol context) 'select-column-continuation)
-                   (let ((cdef (sqlind-column-definition-start pos (sqlind-anchor-point context))))
-                     (when cdef
-                       (save-excursion
-                         (goto-char cdef)
-                         (when (looking-at "case")
-                           (push (sqlind-syntax-in-case pos (point)) context))))))
-
-                 )))
-
-            ;; create block start syntax if needed
-
-            ((and (eq syntax-symbol 'in-block)
-                  (memq (nth 1 syntax) '(if elsif then case))
-                  (looking-at "\\(then\\|\\(els\\(e\\|if\\)\\)\\)\\_>"))
-             (let ((what (intern (sqlind-match-string 0))))
-               ;; the only invalid combination is a then statement in
-               ;; an (in-block "then") context
-               (unless (and (eq what 'then) (equal (nth 1 syntax) 'then))
-                 (push (cons (list 'block-start what) anchor) context))))
-
-            ;; note that begin is not a block-start in a 'in-begin-block
-            ;; context
-            ((and (memq syntax-symbol '(defun-start declare-statement toplevel
-                                        package package-body))
-                  (looking-at "begin\\_>"))
-             (push (cons (list 'block-start 'begin) anchor) context))
-
-            ((and (memq syntax-symbol '(defun-start package package-body))
-                  (looking-at "\\(is\\|as\\)\\_>"))
-             (push (cons (list 'block-start 'is-or-as) anchor) context))
-
-            ((and (memq syntax-symbol '(in-begin-block in-block))
-                  (looking-at "exception\\_>"))
-             (push (cons (list 'block-start 'exception) anchor) context))
-
-            ((and (eq syntax-symbol 'in-block)
-                  (memq (nth 1 syntax) '(then case))
-                  (looking-at "when\\_>"))
-             (push (cons (list 'block-start 'when) anchor) context))
-
-            ;; indenting the select clause inside a view
-            ((and (eq syntax-symbol 'create-statement)
-                  (eq (nth 1 syntax) 'view))
-             (goto-char anchor)
-             (catch 'done
-               (while (re-search-forward "\\bselect\\b" pos 'noerror)
-                 (goto-char (match-beginning 0))
-                 (when (sqlind-same-level-statement (point) anchor)
-                   (push (sqlind-syntax-in-select pos (point)) context)
-                   (throw 'done nil))
-                 (goto-char (match-end 0)))))
-
-            ;; create a block-end syntax if needed
-
-            ((and (not (eq syntax-symbol 'comment-continuation))
-                  (looking-at "end[ \t\r\n\f]*\\(\\_<\\(?:if\\|loop\\|case\\)\\_>\\)?[ \t\r\n\f]*\\(\\_<\\(?:[a-z0-9_]+\\)\\_>\\)?"))
-             ;; so we see the syntax which closes the current block.  We still
-             ;; need to check if the current end is a valid closing block
-             (let ((kind (or (sqlind-match-string 1) ""))
-                   (label (or (sqlind-match-string 2) "")))
-               (push (sqlind-refine-end-syntax
-                      (if (equal kind "") nil (intern kind))
-                      label (point) context)
-                     context)))))
-        context))))
 
 (defun sqlind-show-syntax-of-line ()
   "Print the syntax of the current line."
