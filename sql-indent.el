@@ -684,7 +684,15 @@ See also `sqlind-beginning-of-block'"
 See also `sqlind-beginning-of-block'"
   (when (and (looking-at "exception")
              (null sqlind-end-stmt-stack))
-    (throw 'finished (list 'in-block 'exception))))
+    ;; Exception is both a keyword and a type.  We need to only stop on the
+    ;; keyword.  We detect that if the previous token is either ";" or
+    ;; "BEGIN".
+    (save-excursion
+      (forward-char -1)
+      (sqlind-backward-syntactic-ws)
+      (when (or (looking-at ";")
+                (progn (forward-word -1) (looking-at "\\<_begin\\_>")))
+        (throw 'finished (list 'in-block 'exception))))))
 
 (defconst sqlind-start-block-regexp
   (concat "\\(\\b"
