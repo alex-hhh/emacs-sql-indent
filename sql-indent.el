@@ -204,6 +204,17 @@ See `sqlind-syntax-of-line' for the definition of CONTEXT."
           syntax-part
         (car syntax-part)))))
 
+(defun sqlind-syntax-keyword (context)
+  "Return the syntax keyword for the most specific syntax of CONTEXT.
+This is used for complex syntax symbols like '(in-block case
+\"\"), in that case, it will return the 'case symbol.  See
+`sqlind-syntax-of-line' for the definition of CONTEXT."
+  (when context
+    (let ((syntax-part (caar context)))
+      (if (symbolp syntax-part)
+          nil                           ; no KEYWORD
+        (nth 1 syntax-part)))))
+
 (defun sqlind-anchor-point (context)
   "Return the anchor point for the most specifc syntax of CONTEXT.
 See `sqlind-syntax-of-line' for the definition of CONTEXT."
@@ -422,8 +433,9 @@ See also `sqlind-beginning-of-block'"
 	     (setq case-label
 		   (if case-label (substring case-label 2 -2) ""))
 	     (if (null sqlind-end-stmt-stack)
-                 (when (sqlind-search-backward start-pos "\\_<when\\_>" (point))
-                   (throw 'finished (list 'in-block 'case case-label)))
+                 (save-excursion
+                   (when (sqlind-search-backward start-pos "\\_<when\\_>" (point))
+                     (throw 'finished (list 'in-block 'case case-label))))
 		 ;; else
 		 (cl-destructuring-bind (pos kind label)
 		     (pop sqlind-end-stmt-stack)
