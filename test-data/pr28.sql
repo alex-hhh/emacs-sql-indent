@@ -31,5 +31,7 @@ begin
 end;
 /
 -- Local Variables:
+-- mode: sqlind-minor
+-- mode: sql
 -- sql-product: oracle
 -- End:

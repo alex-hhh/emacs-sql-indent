@@ -1278,7 +1278,7 @@ not a statement-continuation POS is the same as the
 
     ((and (eq syntax-symbol 'in-block)
           (eq (nth 1 syntax) 'exception)
-          (not (looking-at "when\\_>")))
+          (not (looking-at "\\(when\\|end\\)\\_>")))
      (save-excursion
        (when (sqlind-search-backward pos "when\\_>" anchor)
          (push (cons (list 'in-block 'exception-handler) (point)) context))))
