@@ -6,3 +6,10 @@ SELECT y ,
        ELSE "poor"
        END AS level
   FROM bar;
+
+var := CASE
+        var                             -- tricky case
+       WHEN foo>5 THEN "great"
+       WHEN foo=5 THEN "normal"
+       ELSE "poor"
+       END;

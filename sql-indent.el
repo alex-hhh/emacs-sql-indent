@@ -762,8 +762,9 @@ reverse order (a stack) and is used to skip over nested blocks."
            (cons 'case-clause-item (point)))
           (t
            ;; It is a statement continuation from the closest CASE element
-           (while (not (and (re-search-backward sqlind-case-clauses-regexp start 'noerror)
-                            (sqlind-same-level-statement (point) start)))
+           (while (and (not (= (point) start))
+                       (not (and (re-search-backward sqlind-case-clauses-regexp start 'noerror)
+                                 (sqlind-same-level-statement (point) start))))
              nil)
            (cons 'case-clause-item-cont (point))))))
 
