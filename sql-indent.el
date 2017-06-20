@@ -106,16 +106,16 @@ POS is inside a comment, nil otherwise."
   "Move point backwards over whitespace and comments.
 Leave point on the first character which is not syntactic
 whitespace, or at the beginning of the buffer."
-  (catch 'done
-    (while t
+  (let ((done nil))
+    (while (not done)
       (skip-chars-backward " \t\n\r\f\v")
       (unless (eq (point) (point-min))
 	(forward-char -1))
       (let ((pps (syntax-ppss (point))))
 	(if (nth 4 pps)                 ; inside a comment?
 	    (goto-char (nth 8 pps))     ; move to comment start than repeat
-	    (throw 'done (point))       ; done
-	    )))))
+          (setq done t)))))
+  (point))
 
 (defun sqlind-forward-syntactic-ws ()
   "Move point forward over whitespace and comments.
@@ -126,14 +126,15 @@ whitespace, or at the end of the buffer."
   (let ((pps (syntax-ppss (point))))
     (when (nth 4 pps)
       (goto-char (nth 8 pps))))
-  (catch 'done
-    (while t
+  (let ((done nil))
+    (while (not done)
       (skip-chars-forward " \t\n\r\f\v")
       (cond ((looking-at sqlind-comment-start-skip) (forward-comment 1))
             ;; a slash ("/") by itself is a SQL*plus directive and
             ;; counts as whitespace
             ((looking-at "/\\s *$") (goto-char (match-end 0)))
-            (t (throw 'done (point)))))))
+            (t (setq done t)))))
+  (point))
 
 (defun sqlind-search-backward (start regexp limit)
   "Search for REGEXP from START backward until LIMIT.
@@ -141,13 +142,14 @@ Finds a match that is not inside a comment or string, moves point
 to the match and returns it. If no match is found, point is moved
 to LIMIT and nil is returned."
   (goto-char start)
-  (catch 'done
-    (while (re-search-backward regexp limit 'noerror)
+  (let ((done nil))
+    (while (and (not done)
+                (re-search-backward regexp limit 'noerror))
       (unless (sqlind-in-comment-or-string (point))
-        (throw 'done (point))))
-    nil))
+        (setq done (point))))
+    done))
 
-(defun sqlind-match-string (pos)
+(defsubst sqlind-match-string (pos)
   "Return the match data at POS in the current buffer.
 This is similar to `match-data', but the text is fetched without
 text properties and it is conveted to lower case."
@@ -326,36 +328,38 @@ But don't go before LIMIT."
 (defun sqlind-beginning-of-statement ()
   "Move point to the beginning of the current statement."
   (interactive)
-  (let* ((directive-start (sqlind-begining-of-directive))
-         (statement-start
-          (or
-           ;; If we are inside a paranthesis expression, the start is the
-           ;; start of that expression.
-           (let ((ppss (syntax-ppss (point))))
-             (when (> (nth 0 ppss) 0)
-               (nth 1 ppss)))
-           ;; Look for an ordinary statement start
-           (sqlind-beginning-of-statement-1 directive-start)
-           ;; Fall back on the directive position...
-           directive-start
-           ;; ... or point-min
-           (point-min))))
 
-    (goto-char statement-start)
+  (goto-char
+   (or
+    ;; If we are inside a paranthesis expression, the start is the start of
+    ;; that expression.
+    (let ((ppss (syntax-ppss (point))))
+      (when (> (nth 0 ppss) 0)
+        (nth 1 ppss)))
+    ;; Look for an ordinary statement start
+    (let ((directive-start (sqlind-begining-of-directive)))
+      (or (sqlind-beginning-of-statement-1 directive-start)
+          ;; Fall back on the directive position...
+          directive-start))
+    ;; ... or point-min
+    (point-min)))
 
-    ;; a loop keyword might be part of an "end loop" statement, in that case,
-    ;; the statement starts with the "end" keyword.  we use
-    ;; skip-syntax-backward so we won't skip over a semicolon (;)
+  ;; a loop keyword might be part of an "end loop" statement, in that case,
+  ;; the statement starts with the "end" keyword.  we use skip-syntax-backward
+  ;; so we won't skip over a semicolon (;)
+  (let ((pos (point)))
     (skip-syntax-backward "w")
-    (when (looking-at "loop")
-      (forward-word -1)
-      (if (looking-at "\\bend\\b")
-          (setq statement-start (match-beginning 0))))
+    (if (looking-at "loop")
+        (progn
+          (forward-word -1)
+          (if (looking-at "\\bend\\b")
+              (goto-char (match-beginning 0))
+            (goto-char pos)))
+      (goto-char pos)))
 
-    ;; now skip over any whitespace and comments until we find the
-    ;; first character that is program code.
-    (goto-char statement-start)
-    (sqlind-forward-syntactic-ws)))
+  ;; now skip over any whitespace and comments until we find the first
+  ;; character that is program code.
+  (sqlind-forward-syntactic-ws))
 
 ;;;;; Find the syntax and beginning of the current block
 
@@ -1352,14 +1356,12 @@ procedure block."
              (context (list (cons 'statement-continuation context-start)))
              (have-block-context nil))
 
-        (goto-char pos)
+        (goto-char context-start)
         (when (or (>= context-start pos)
-                  (save-excursion
-                    (goto-char context-start)
-                    (looking-at sqlind-start-block-regexp)))
-          ;; if we are at the start of a statement, or the nearest
-          ;; statement starts after us, make the enclosing block the
-          ;; starting context
+                  (looking-at sqlind-start-block-regexp))
+          (goto-char pos)
+          ;; if we are at the start of a statement, or the nearest statement
+          ;; starts after us, make the enclosing block the starting context
           (setq have-block-context t)
           (let ((block-info (sqlind-beginning-of-block)))
 
@@ -1378,7 +1380,7 @@ procedure block."
               (setq context-start (point))
               (setq context (list (cons block-info context-start))))))
 
-        (let ((parse-info (parse-partial-sexp context-start pos)))
+        (let ((parse-info (syntax-ppss pos)))
           (cond ((nth 4 parse-info)   ; inside a comment
                  (push (cons 'comment-continuation (nth 8 parse-info)) context))
                 ((nth 3 parse-info)   ; inside a string
@@ -1396,7 +1398,7 @@ procedure block."
 
         ;; now let's refine the syntax by adding info about the current line
         ;; into the mix.
-        (sqlind-refine-syntax  context pos have-block-context)))))
+        (sqlind-refine-syntax context pos have-block-context)))))
 
 
 (defun sqlind-show-syntax-of-line ()
