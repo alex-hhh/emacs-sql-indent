@@ -273,7 +273,7 @@ determine the statement start in SQLite scripts.")
           "\\>")
   "Match an MS SQL Sever directive at the beginning of a line.")
 
-(defun sqlind-begining-of-directive ()
+(defun sqlind-beginning-of-directive ()
   "Return the position of an SQL directive, or nil.
 We will never move past one of these in our scan.  We also assume
 they are one-line only directives."
@@ -1355,7 +1355,7 @@ procedure block."
   (save-excursion
     (with-syntax-table sqlind-syntax-table
       (let* ((pos (progn (back-to-indentation) (point)))
-             (sqlind-search-limit (sqlind-begining-of-directive))
+             (sqlind-search-limit (sqlind-beginning-of-directive))
              (context-start (progn (sqlind-beginning-of-statement) (point)))
              (context (list (cons 'statement-continuation context-start)))
              (have-block-context nil))
