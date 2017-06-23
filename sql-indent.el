@@ -288,12 +288,16 @@ they are one-line only directives."
           (forward-line 1)
           (point))))))
 
+(defvar sqlind-search-limit nil
+  "Limit of search when looking for syntactic elements.
+This variable is dynamically bound.")
+
 (defun sqlind-beginning-of-statement-1 (limit)
   "Return the position of a block start, or nil.
 But don't go before LIMIT."
   (save-excursion
     (catch 'done
-      (while (not (eq (point) (or limit (point-min))))
+      (while (> (point) (or limit (point-min)))
         (when (re-search-backward
                ";\\|:=\\|\\b\\(declare\\|begin\\|cursor\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
                limit 'noerror)
@@ -337,10 +341,9 @@ But don't go before LIMIT."
       (when (> (nth 0 ppss) 0)
         (nth 1 ppss)))
     ;; Look for an ordinary statement start
-    (let ((directive-start (sqlind-begining-of-directive)))
-      (or (sqlind-beginning-of-statement-1 directive-start)
-          ;; Fall back on the directive position...
-          directive-start))
+    (or (sqlind-beginning-of-statement-1 sqlind-search-limit)
+        ;; Fall back on the search limit
+        sqlind-search-limit)
     ;; ... or point-min
     (point-min)))
 
@@ -524,7 +527,7 @@ See also `sqlind-beginning-of-block'"
                       (pop sqlind-end-stmt-stack)
                     (unless (and (eq kind 'loop)
                                  (sqlind-labels-match label loop-label))
-                      (throw 'finshed
+                      (throw 'finished
                         (list 'syntax-error
                               "bad closing for loop block" (point) pos)))))))))))
 
@@ -726,7 +729,7 @@ reverse order (a stack) and is used to skip over nested blocks."
   (interactive)
   (catch 'finished
     (let ((sqlind-end-stmt-stack end-statement-stack))
-      (while (re-search-backward sqlind-start-block-regexp nil 'noerror)
+      (while (re-search-backward sqlind-start-block-regexp sqlind-search-limit 'noerror)
         (or (sqlind-in-comment-or-string (point))
             (when (looking-at ")") (forward-char 1) (forward-sexp -1) t)
             (sqlind-maybe-end-statement)
@@ -1352,6 +1355,7 @@ procedure block."
   (save-excursion
     (with-syntax-table sqlind-syntax-table
       (let* ((pos (progn (back-to-indentation) (point)))
+             (sqlind-search-limit (sqlind-begining-of-directive))
              (context-start (progn (sqlind-beginning-of-statement) (point)))
              (context (list (cons 'statement-continuation context-start)))
              (have-block-context nil))
