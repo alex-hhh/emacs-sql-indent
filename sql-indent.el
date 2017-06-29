@@ -318,9 +318,13 @@ But don't go before LIMIT."
                      (when (looking-at ";")
                        ;; Statement begins after the keyword
                        (throw 'done candidate-pos)))
-                    ((looking-at "\\b\\(if\\|elsif\\)\\b")
+                    ((looking-at "\\b\\(elsif\\)\\b")
                      ;; statement begins at the start of the keyword
                      (throw 'done (point)))
+                    ((looking-at "\\b\\(if\\)\\b")
+                     (when (sqlind-good-if-candidate)
+                       ;; statement begins at the start of the keyword
+                       (throw 'done (point))))
                     ((looking-at ":=")
                      ;; assignment statements start at the assigned variable
                      (sqlind-backward-syntactic-ws)
@@ -460,22 +464,30 @@ See also `sqlind-beginning-of-block'"
            (goto-char start-pos)
            nil))))))
 
+(defun sqlind-good-if-candidate ()
+  "Return true if point is on an actual if statement.
+We try to avoid false positives, like \"end if\" or the various
+\"drop STUFF if exists\" variants."
+  (and (looking-at "if")
+       (save-excursion
+         (sqlind-backward-syntactic-ws)
+         (forward-word -1)
+         ;; we don't want to match an "end if", and things like "drop index if
+         ;; exists..." and "create index if not exist..."
+         (not (looking-at "end\\|table\\|view\\|index\\|trigger\\procedude\\|function\\|package\\|body")))))
+
 (defun sqlind-maybe-if-statement ()
   "If (point) is on an IF statement, report its syntax."
-  (when (looking-at "if")
-    (save-excursion
-      (sqlind-backward-syntactic-ws)
-      (forward-word -1)
-      (unless (looking-at "end")        ; we don't want to match an "end if" here
-        (cond ((null sqlind-end-stmt-stack)
-               (throw 'finished (list 'in-block 'if "")))
-              (t
-               (cl-destructuring-bind (pos kind _label)
-                   (pop sqlind-end-stmt-stack)
-                 (unless (eq kind 'if)
-                   (throw 'finshed
-                     (list 'syntax-error
-                           "bad closing for if block" (point) pos))))))))))
+  (when (sqlind-good-if-candidate)
+    (cond ((null sqlind-end-stmt-stack)
+           (throw 'finished (list 'in-block 'if "")))
+          (t
+           (cl-destructuring-bind (pos kind _label)
+               (pop sqlind-end-stmt-stack)
+             (unless (eq kind 'if)
+               (throw 'finshed
+                 (list 'syntax-error
+                       "bad closing for if block" (point) pos))))))))
 
 (defun sqlind-maybe-case-statement ()
   "If (point) is on a case statement"
