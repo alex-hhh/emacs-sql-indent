@@ -680,7 +680,7 @@ See also `sqlind-beginning-of-block'"
 	    (when (looking-at "(")
 	      (ignore-errors (forward-sexp 1))
 	      (sqlind-forward-syntactic-ws))
-	    (when (looking-at "return\\(?:[ \n\r\f]+\\)\\([a-z0-9_]+\\)")
+	    (when (looking-at "return\\(?:[ \n\r\f]+\\)\\([a-z0-9_.]+\\(?:%\\(?:row\\)?type\\)?\\)")
 	      (goto-char (match-end 0))
 	      (sqlind-forward-syntactic-ws))
 	    (when (looking-at ";")
