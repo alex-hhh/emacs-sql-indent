@@ -1,5 +1,15 @@
+#+title: sql-indent.el -- syntax based indentation for SQL files for GNU Emacs
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Roboto+Slab:400,700|Inconsolata:400,700" />
 
-    sql-indent.el -- syntax based indentation for SQL files for GNU Emacs
+#+HTML_HEAD: <style type="text/css">.linenr{color:lightgray;}#content {max-width: 100%!important;}</style>
+
+#+HTML_HEAD: <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/readtheorg/js/readtheorg.js"></script>
+
 
 *NOTE* This file is formated as an Emacs Org file.  If you open it in GNU
 Emacs, you will be able to open-close sections of the file, which will make
