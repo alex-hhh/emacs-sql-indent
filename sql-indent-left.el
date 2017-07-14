@@ -52,6 +52,16 @@
 
 (require 'sql-indent)
 
+(defun indent-case-statement-items (syntax base-indentation)
+  ;; Look for a syntax of ((block-start when) (in-block case "") ...)
+  ;; or ((block-start else) (in-block case "") ...)
+  (let ((outer (sqlind-outer-context syntax)))
+    (if (and (eq 'in-block (sqlind-syntax-symbol outer))
+             (eq 'case (sqlind-syntax-keyword outer))
+             (eq 'block-start (sqlind-syntax-symbol syntax))
+             (memq (sqlind-syntax-keyword syntax) '(when else)))
+        (+ base-indentation sqlind-basic-offset)
+      base-indentation)))
 
 (defvar sqlind-indentation-right-offsets-alist
   `((select-column-continuation sqlind-indent-select-column
@@ -166,6 +176,7 @@ select aaa,
     (delete-clause 0)
     (update-clause 0)
     (case-clause-item-cont 0)
+    (block-start indent-case-statement-items)
     (begin-block 0)
     (case-clause +)
     (package +)
