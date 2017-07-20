@@ -299,7 +299,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (> (point) (or limit (point-min)))
         (when (re-search-backward
-               ";\\|:=\\|\\b\\(declare\\|begin\\|cursor\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
+               ";\\|:=\\|\\b\\(declare\\|begin\\|cursor\\|for\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
@@ -308,7 +308,7 @@ But don't go before LIMIT."
                      ;; of the keywords inside one of them and think this is a
                      ;; statement start.
                      (progn (forward-char 1) (forward-sexp -1)))
-                    ((looking-at "\\bcursor\\b")
+                    ((looking-at "\\b\\(cursor\\|for\\)\\b")
                      ;; statement begins at the start of the keyword
                      (throw 'done (point)))
                     ((looking-at "\\b\\(then\\|else\\)\\b")
