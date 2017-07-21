@@ -644,7 +644,11 @@ See also `sqlind-beginning-of-block'"
 			 (progn (skip-syntax-forward "w_") (point))))))
 
 	  (if (memq what '(procedure function package package-body))
-	    (if (null sqlind-end-stmt-stack)
+	      ;; check is name is in the form user.name, if so then suppress user part.
+	      (progn
+		(when (string-match "\\(?:.*\\.\\)?\\(.*\\)" name)
+		  (setq name (match-string 1 name)))
+		(if (null sqlind-end-stmt-stack)
 		(throw 'finished
 		  (list (if (memq what '(procedure function)) 'defun-start what)
 			name))
@@ -656,7 +660,7 @@ See also `sqlind-beginning-of-block'"
 		  (unless (sqlind-labels-match label name)
 		    (throw 'finished
 		      (list 'syntax-error
-			    "label mismatch in create block" (point) pos)))))
+			    "label mismatch in create block" (point) pos))))))
 	    ;; we are creating a non-code block thing: table, view,
 	    ;; index, etc.  These things only exist at toplevel.
 	    (unless (null sqlind-end-stmt-stack)
