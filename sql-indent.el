@@ -2178,7 +2178,7 @@ A set of alignment rules are also enabled with this minor mode.
 Selecting a region of text and typing `M-x align RET` will align
 the statements.  This can be used, for example, to align the 'as'
 column aliases in select statements."
-  :lighter "sqlind"
+  :lighter " sqlind"
   :group 'sqlind
   :global nil
   :init-value nil
