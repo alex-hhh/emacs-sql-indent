@@ -186,7 +186,7 @@ statement."
     (goto-char pos)
     (catch 'found
       (while (re-search-backward "," limit 'noerror)
-        (when (sqlind-same-level-statement (point) pos)
+        (when (sqlind-same-level-statement (point) limit)
           (forward-char 1)
           (sqlind-forward-syntactic-ws)
           (throw 'found (point)))))))
@@ -835,7 +835,8 @@ reverse order (a stack) and is used to skip over nested blocks."
    "having\\|"
    "group[ \t\r\n\f]+by\\|"
    "connect[ \t\r\n\f]+by\\|"
-   "start[ \t\r\n\f]+with"
+   "start[ \t\r\n\f]+with\\|"
+   "limit"
    "\\)\\_>"))
 
 (defconst sqlind-select-join-regexp
