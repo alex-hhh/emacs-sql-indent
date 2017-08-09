@@ -71,4 +71,11 @@
   ((in-begin-block toplevel-block "")
    . 165))
  ((toplevel . 1))
+ ((comment-start . 1)
+  (toplevel . 1))
+ ((comment-start . 1)
+  (toplevel . 1))
+ ((comment-start . 1)
+  (toplevel . 1))
  ((toplevel . 1)))
+ 

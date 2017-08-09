@@ -268,11 +268,12 @@ A directive always stands on a line by itself -- we use that to
 determine the statement start in SQLite scripts.")
 
 (defconst sqlind-ms-directive
-  (concat "^"
-          (regexp-opt '("declare") t)
-          "\\>")
+  (concat
+   "\\(^set\\s-+\\(\\w\\|\\s_\\)+\\s-+\\(on\\|off\\)\\)\\|\\(^"
+   (regexp-opt '("use" "go" "declare") t)
+   "\\)\\b")
   "Match an MS SQL Sever directive at the beginning of a line.")
-
+  
 (defun sqlind-beginning-of-directive ()
   "Return the position of an SQL directive, or nil.
 We will never move past one of these in our scan.  We also assume
@@ -624,7 +625,8 @@ See also `sqlind-beginning-of-block'"
 (defun sqlind-maybe-create-statement ()
   "If (point) is on a CREATE statement, report its syntax.
 See also `sqlind-beginning-of-block'"
-  (when (looking-at "create\\_>\\(?:[ \n\r\f]+\\)\\(or\\(?:[ \n\r\f]+\\)replace\\_>\\)?")
+  (when (or (looking-at "create\\_>\\(?:[ \n\r\f]+\\)\\(or\\(?:[ \n\r\f]+\\)replace\\_>\\)?")
+            (looking-at "alter\\_>"))
     (prog1 t                            ; make sure we return t
       (save-excursion
 	;; let's see what are we creating
@@ -635,13 +637,13 @@ See also `sqlind-beginning-of-block'"
 				       (progn (forward-word) (point))))))
 	      (name (downcase (buffer-substring-no-properties
 			       (progn (sqlind-forward-syntactic-ws) (point))
-			       (progn (skip-syntax-forward "w_") (point))))))
+			       (progn (skip-syntax-forward "w_()") (point))))))
 	  (when (and (eq what 'package) (equal name "body"))
 	    (setq what 'package-body)
 	    (setq name (downcase
 			(buffer-substring-no-properties
 			 (progn (sqlind-forward-syntactic-ws) (point))
-			 (progn (skip-syntax-forward "w_") (point))))))
+			 (progn (skip-syntax-forward "w_()") (point))))))
 
 	  (if (memq what '(procedure function package package-body))
 	      ;; check is name is in the form user.name, if so then suppress user part.
@@ -700,7 +702,8 @@ See also `sqlind-beginning-of-block'"
 	      (forward-word -1)
 	      (when (looking-at "replace")
 		(forward-word -2))
-	      (when (and (looking-at "create\\([ \t\r\n\f]+or[ \t\r\n\f]+replace\\)?")
+	      (when (and (or (looking-at "create\\([ \t\r\n\f]+or[ \t\r\n\f]+replace\\)?")
+                             (looking-at "alter"))
 			 (not (sqlind-in-comment-or-string (point))))
 		(setq real-start (point))))
 	    (goto-char real-start))
@@ -732,7 +735,7 @@ See also `sqlind-beginning-of-block'"
 (defconst sqlind-start-block-regexp
   (concat "\\(\\b"
 	  (regexp-opt '("if" "then" "else" "elsif" "loop"
-			"begin" "declare" "create" "exception"
+			"begin" "declare" "create" "alter" "exception"
 			"procedure" "function" "end" "case") t)
 	  "\\b\\)\\|)")
   "Regexp to match the start of a block.")
@@ -756,7 +759,8 @@ reverse order (a stack) and is used to skip over nested blocks."
             (sqlind-maybe-else-statement)
             (sqlind-maybe-loop-statement)
             (sqlind-maybe-begin-statement)
-            (sqlind-maybe-declare-statement)
+            (when (eq sql-product 'oracle) ; declare statements only start blocks in PL/SQL
+              (sqlind-maybe-declare-statement))
             (sqlind-maybe-create-statement)
             (sqlind-maybe-defun-statement))))
     'toplevel))

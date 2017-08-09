@@ -1,10 +1,10 @@
 select y ,
        case
-         when foo>5 then "great"
-         when foo=5 then "normal"
-         else "poor"
+       when foo>5 then "great"
+       when foo=5 then "normal"
+       else "poor"
        end as level
-from   bar;
+  from   bar;
 
 declare
   dummy number;
@@ -23,3 +23,6 @@ begin
   end case;
 end;
 /
+-- Local Variables:
+-- sql-product: oracle
+-- End:
