@@ -140,13 +140,13 @@ only a few symbols need to be updated, the usual way to update it is to
 
 #+BEGIN_SRC emacs-lisp
   (defvar my-sql-indentation-offsets-alist
-    '( ;; put new syntactic symbols here, and add the default ones at the end.
+    `( ;; put new syntactic symbols here, and add the default ones at the end.
        ;; If there is no value specified for a syntactic symbol, the default
        ;; will be picked up.
       ,@sqlind-default-indentation-offsets-alist))
 
   ;; Arrange for the new indentation offset to be set up for each SQL buffer.
-  (add-hook 'sql-mode-hook
+  (add-hook 'sqlind-minor-mode-hook
             (lambda ()
               (setq sqlind-indentation-offsets-alist
                     my-sql-indentation-offsets-alist)))
