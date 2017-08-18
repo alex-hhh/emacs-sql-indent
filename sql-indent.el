@@ -300,7 +300,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (> (point) (or limit (point-min)))
         (when (re-search-backward
-               ";\\|:=\\|\\b\\(declare\\|begin\\|cursor\\|for\\|loop\\|if\\|then\\|else\\|elsif\\)\\b\\|)"
+               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|loop\\|if\\|then\\|else\\|elsif\\)\\_>\\|)"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
@@ -309,20 +309,20 @@ But don't go before LIMIT."
                      ;; of the keywords inside one of them and think this is a
                      ;; statement start.
                      (progn (forward-char 1) (forward-sexp -1)))
-                    ((looking-at "\\b\\(cursor\\|for\\)\\b")
+                    ((looking-at "cursor\\|for")
                      ;; statement begins at the start of the keyword
                      (throw 'done (point)))
-                    ((looking-at "\\b\\(then\\|else\\)\\b")
+                    ((looking-at "then\\|else")
                      ;; then and else start statements when they are inside
                      ;; blocks, not expressions.
                      (sqlind-backward-syntactic-ws)
                      (when (looking-at ";")
                        ;; Statement begins after the keyword
                        (throw 'done candidate-pos)))
-                    ((looking-at "\\b\\(elsif\\)\\b")
+                    ((looking-at "elsif")
                      ;; statement begins at the start of the keyword
                      (throw 'done (point)))
-                    ((looking-at "\\b\\(if\\)\\b")
+                    ((looking-at "if")
                      (when (sqlind-good-if-candidate)
                        ;; statement begins at the start of the keyword
                        (throw 'done (point))))
@@ -733,11 +733,11 @@ See also `sqlind-beginning-of-block'"
         (throw 'finished (list 'in-block 'exception))))))
 
 (defconst sqlind-start-block-regexp
-  (concat "\\(\\b"
+  (concat "\\(\\_<"
 	  (regexp-opt '("if" "then" "else" "elsif" "loop"
 			"begin" "declare" "create" "alter" "exception"
 			"procedure" "function" "end" "case") t)
-	  "\\b\\)\\|)")
+	  "\\_>\\)\\|)")
   "Regexp to match the start of a block.")
 
 (defun sqlind-beginning-of-block (&optional end-statement-stack)
@@ -783,7 +783,7 @@ reverse order (a stack) and is used to skip over nested blocks."
           ((looking-at "then")
            ;; THEN and ELSE clauses are indented relative to the start of the
            ;; when clause, which we must find
-           (while (not (and (re-search-backward "\\bwhen\\b")
+           (while (not (and (re-search-backward "\\_<when\\_>")
                             (sqlind-same-level-statement (point) start)))
              nil)
            (cons 'case-clause-item (point)))
