@@ -1,13 +1,13 @@
 
     sql-indent.el -- syntax based indentation for SQL files for GNU Emacs
 
-*NOTE* This file is formated as an Emacs Org file.  If you open it in GNU
+*NOTE* This file is formatted as an Emacs Org file.  If you open it in GNU
 Emacs, you will be able to open-close sections of the file, which will make
-naivgation easier.
+navigation easier.
 
 * Overview
 
-sql-indnent.el is a GNU Emacs minor mode which adds support for syntax-based
+sql-indent.el is a GNU Emacs minor mode which adds support for syntax-based
 indentation when editing SQL code: TAB indents the current line based on the
 syntax of the SQL code on previous lines.  This works like the indentation for
 C and C++ code.
@@ -44,7 +44,7 @@ To use this feature, select the region you want to align and type:
   M-x align RET
 #+END_SRC
 
-* Instalation
+* Installation
 
 To install this package, open the file ~sql-indent.el~ in Emacs and type
 
@@ -133,8 +133,8 @@ You can add the following code to your init file:
 
 To customize indentation, you will need to provide a new value for the
 ~sqlind-indentation-offsets-alist~ variable.  The variable is made buffer
-local eact time it is set, so you need to set it inside the ~sql-mode-hook~.
-The variable specifies how each syntactic symbol shuld be indented.  Since
+local ea ct time it is set, so you need to set it inside the ~sql-mode-hook~.
+The variable specifies how each syntactic symbol should be indented.  Since
 only a few symbols need to be updated, the usual way to update it is to
 "extend" the value of ~sqlind-default-indentation-offsets-alist~, like so:
 
@@ -416,7 +416,7 @@ to the start of a statement itself.
    not the first element after the bracket.
 
 The following SYNTAX-es are for statements which are SQL code (DML
-statements).  They are pecialisations on the previous statement syntaxes and
+statements).  They are specializations on the previous statement syntaxes and
 for all of them a previous generic statement syntax is present earlier in the
 SYNTAX list.  Unless otherwise specified, ANCHOR points to the start of the
 clause (select, from, where, etc) in which the current point is.
@@ -487,7 +487,7 @@ clause (select, from, where, etc) in which the current point is.
 * Limitations
 ** Parsing expressions
 
-There is no suport for parsing SQL expressions, so if an expression is broken
+There is no support for parsing SQL expressions, so if an expression is broken
 over several lines, sql-indent.el will consider all lines to be
 ~statement-continuation~ lines.  The exception is that bracketed expressions
 are identified correctly so they can be used for indentation.
