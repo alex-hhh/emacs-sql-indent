@@ -117,13 +117,13 @@ You can add the following code to your init file:
   ;; are aligned with the clause start
 
   (defvar my-sql-indentation-offsets-alist
-    '((select-clause 0)
+    `((select-clause 0)
       (insert-clause 0)
       (delete-clause 0)
       (update-clause 0)
       ,@sqlind-default-indentation-offsets-alist))
 
-  (add-hook 'sql-mode-hook
+  (add-hook 'sql-minor-mode-hook
       (lambda ()
          (setq sqlind-indentation-offsets-alist
                my-sql-indentation-offsets-alist)))
@@ -255,6 +255,31 @@ the column of the anchor point.
 
 if the line starts with a close paren, discard the current offset and return
 the column of the corresponding open paren.
+
+This helper function should be added to the end of the indentation symbols,
+like so:
+
+#+BEGIN_SRC emacs-lisp
+  (defvar my-sql-indentation-offsets-alist
+    `((in-select-clause + sqlind-lineup-close-paren-to-open)
+      (select-table-continuation + sqlind-lineup-close-paren-to-open)
+      ,@sqlind-default-indentation-offsets-alist))
+#+END_SRC
+
+**** sqlind-lineup-close-paren-to-open-indentation
+
+if the line starts with a close paren, discard the current offset and return
+the indentation of the line containing the open paren.
+
+This helper function should be added to the end of the indentation symbols,
+like so:
+
+#+BEGIN_SRC emacs-lisp
+  (defvar my-sql-indentation-offsets-alist
+    `((in-select-clause + sqlind-lineup-close-paren-to-open-indentation)
+      (select-table-continuation + sqlind-lineup-close-paren-to-open-indentation)
+      ,@sqlind-default-indentation-offsets-alist))
+#+END_SRC
 
 **** sqlind-lone-semicolon
 
