@@ -133,7 +133,7 @@ You can add the following code to your init file:
 
 To customize indentation, you will need to provide a new value for the
 ~sqlind-indentation-offsets-alist~ variable.  The variable is made buffer
-local ea ct time it is set, so you need to set it inside the ~sql-mode-hook~.
+local each time it is set, so you need to set it inside the ~sql-mode-hook~.
 The variable specifies how each syntactic symbol should be indented.  Since
 only a few symbols need to be updated, the usual way to update it is to
 "extend" the value of ~sqlind-default-indentation-offsets-alist~, like so:
