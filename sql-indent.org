@@ -49,7 +49,7 @@ To use this feature, select the region you want to align and type:
 To install this package, open the file ~sql-indent.el~ in Emacs and type
 
 #+BEGIN_SRC text
-  M-x install-package-from-buffer RET
+  M-x package-install-from-buffer RET
 #+END_SRC
 
 The syntax-based indentation of SQL code can be turned ON/OFF at any time by

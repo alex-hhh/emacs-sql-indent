@@ -22,7 +22,7 @@ See the [manual](./sql-indent.org) for more details.
 
 To install this package, open the file `sql-indent.el` in Emacs and type
 
-    M-x install-package-from-buffer RET
+    M-x package-install-from-buffer RET
 
 The syntax-based indentation of SQL code can be turned ON/OFF at any time by
 enabling or disabling `sqlind-minor-mode`:
