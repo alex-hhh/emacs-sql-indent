@@ -1219,7 +1219,7 @@ not a statement-continuation POS is the same as the
          (goto-char anchor)
          (when (eq syntax 'nested-statement-continuation)
            (forward-char 1)
-           (skip-chars-forward " \t\r\n\f\v")
+           (sqlind-forward-syntactic-ws)
            (setq anchor (point)))
 
          ;; when all we have before `pos' is a label, we have a
