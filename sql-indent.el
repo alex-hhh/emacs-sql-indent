@@ -2168,14 +2168,24 @@ determine how to indent each type of syntactic element."
      (repeat . t))
     ;; Line up the two sides of an equal sign in an update expression
     (sql-equals
-     (regexp . "[^:]\\(\\s-*\\)=\\(\\s-*\\)[^>]")
+     (regexp . "[^:<>!]\\(\\s-*\\)=\\(\\s-*\\)[^>]")
      (modes quote (sql-mode))
      (group 1 2)
      (case-fold . t)
      (valid . ,(function (lambda ()
-     			   (save-excursion
-     			     (goto-char (match-end 1))
-     			     (not (nth 3 (syntax-ppss (point))))))))
+                 (save-excursion
+                   (goto-char (match-end 1))
+                   (not (nth 3 (syntax-ppss (point))))))))
+     (repeat . t))
+    (sql-comparison-operators           ; see issue #47
+     (regexp . "[^:]\\(\\s-*\\)[<>=!]+\\(\\s-*\\)[^>]")
+     (modes quote (sql-mode))
+     (group 1 2)
+     (case-fold . t)
+     (valid . ,(function (lambda ()
+                 (save-excursion
+                   (goto-char (match-end 1))
+                   (not (nth 3 (syntax-ppss (point))))))))
      (repeat . t))
     ;; Line up the two sides of piped string
     (sql-pipes
