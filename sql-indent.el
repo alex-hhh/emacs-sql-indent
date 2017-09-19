@@ -2082,6 +2082,7 @@ close paren."
               (progn
                 (goto-char (sqlind-anchor-point stx))
                 (back-to-indentation)
+                (back-to-indentation)
                 (current-column))
             base-indentation))
       base-indentation)))
