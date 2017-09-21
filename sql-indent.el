@@ -1200,7 +1200,7 @@ not a statement-continuation POS is the same as the
         (syntax-symbol (sqlind-syntax-symbol context)))
     
     (goto-char pos)
-    
+
     (cond
       ;; do we start a comment?
       ((and (not (eq syntax-symbol 'comment-continuation))
@@ -1414,12 +1414,12 @@ procedure block."
                  (let ((start (nth 1 parse-info)))
                    (goto-char (1+ start))
                    (skip-chars-forward " \t\r\n\f\v" pos)
-                   (push (cons
-                          (if (eq (point) pos)
-                              'nested-statement-open
-			    'nested-statement-continuation)
-                          start)
-                         context)))))
+                   (if (eq (point) pos)
+                       (push (cons 'nested-statement-open start) context)
+                     (goto-char pos)
+                     (if (looking-at ")")
+                         (push (cons 'nested-statement-close start) context)
+                       (push (cons 'nested-statement-continuation start) context)))))))
 
         ;; now let's refine the syntax by adding info about the current line
         ;; into the mix.
@@ -1530,6 +1530,9 @@ them ANCHOR points to the start of a statement itself.
 - nested-statement-continuation -- line is inside an opening
   bracket, but not the first element after the bracket.
 
+- nested-statement-close -- line is inside an opening bracket and
+  the line contains the closing bracket as the first character.
+
 The following SYNTAX-es are for statements which are SQL
 code (DML statements).  They are pecialisations on the previous
 statement syntaxes and for all of them a previous generic
@@ -1625,6 +1628,7 @@ clause (select, from, where, etc) in which the current point is.
     (statement-continuation         +)
     (nested-statement-open          sqlind-use-anchor-indentation +)
     (nested-statement-continuation  sqlind-use-previous-line-indentation)
+    (nested-statement-close         sqlind-use-anchor-indentation)
 
     (with-clause                    sqlind-use-anchor-indentation)
     (with-clause-cte                +)
@@ -2033,57 +2037,6 @@ function returns BASE-INDENTATION, acting as a no-op."
     (back-to-indentation)
     (if (looking-at "(")
         (sqlind-lineup-to-anchor syntax base-indentation)
-      base-indentation)))
-
-(defun sqlind-lineup-close-paren-to-open (syntax base-indentation)
-  "Align a closing paren with the corresponding open paren.
-If line starts with a closing paren ')', the corresponding
-'nested-statement-continuation syntax is found in SYNTAX and the
-column of the anchor point is returned.  BASE-INDENTATION is
-ignored in that case.
-
-If line does not start with a closing paren, the function return
-BASE-INDENTATION, acting as a no-op.
-
-NOTE: this indentation helper should be added a the end of the
-item list for a syntax symbol.  This way, a normal indentation
-calculation is done and only discarded if the line starts with a
-close paren."
-  (save-excursion
-    (back-to-indentation)
-    (if (looking-at ")")
-        (let ((stx (sqlind-find-context 'nested-statement-continuation syntax)))
-          (if stx
-              (progn
-               (goto-char (sqlind-anchor-point stx))
-               (current-column))
-            base-indentation))
-      base-indentation)))
-
-(defun sqlind-lineup-close-paren-to-open-indentation (syntax base-indentation)
-  "Align a closing paren with the indentation of the line containing the open paren.
-If line starts with a closing paren ')', the corresponding
-'nested-statement-continuation syntax is found in SYNTAX and the
-column of the anchor point is returned.  BASE-INDENTATION is
-ignored in that case.
-
-If line does not start with a closing paren, the function return
-BASE-INDENTATION, acting as a no-op.
-
-NOTE: this indentation helper should be added a the end of the
-item list for a syntax symbol.  This way, a normal indentation
-calculation is done and only discarded if the line starts with a
-close paren."
-  (save-excursion
-    (back-to-indentation)
-    (if (looking-at ")")
-        (let ((stx (sqlind-find-context 'nested-statement-continuation syntax)))
-          (if stx
-              (progn
-                (goto-char (sqlind-anchor-point stx))
-                (back-to-indentation)
-                (current-column))
-            base-indentation))
       base-indentation)))
 
 (defun sqlind-adjust-comma (_syntax base-indentation)

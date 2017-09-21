@@ -251,36 +251,6 @@ line
 if the line starts with an open paren, discard the current offset and return
 the column of the anchor point.
 
-**** sqlind-lineup-close-paren-to-open
-
-if the line starts with a close paren, discard the current offset and return
-the column of the corresponding open paren.
-
-This helper function should be added to the end of the indentation symbols,
-like so:
-
-#+BEGIN_SRC emacs-lisp
-  (defvar my-sql-indentation-offsets-alist
-    `((in-select-clause + sqlind-lineup-close-paren-to-open)
-      (select-table-continuation + sqlind-lineup-close-paren-to-open)
-      ,@sqlind-default-indentation-offsets-alist))
-#+END_SRC
-
-**** sqlind-lineup-close-paren-to-open-indentation
-
-if the line starts with a close paren, discard the current offset and return
-the indentation of the line containing the open paren.
-
-This helper function should be added to the end of the indentation symbols,
-like so:
-
-#+BEGIN_SRC emacs-lisp
-  (defvar my-sql-indentation-offsets-alist
-    `((in-select-clause + sqlind-lineup-close-paren-to-open-indentation)
-      (select-table-continuation + sqlind-lineup-close-paren-to-open-indentation)
-      ,@sqlind-default-indentation-offsets-alist))
-#+END_SRC
-
 **** sqlind-lone-semicolon
 
 if the line contains a single semicolon ';', use the value of
@@ -439,6 +409,9 @@ to the start of a statement itself.
 
  * ~nested-statement-continuation~ -- line is inside an opening bracket, but
    not the first element after the bracket.
+
+ * ~nested-statement-close~ line is inside an opening bracket and the line
+   contains the closing bracket as the first character.
 
 The following SYNTAX-es are for statements which are SQL code (DML
 statements).  They are specializations on the previous statement syntaxes and
