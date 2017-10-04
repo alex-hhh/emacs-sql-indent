@@ -300,7 +300,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (> (point) (or limit (point-min)))
         (when (re-search-backward
-               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|loop\\|if\\|then\\|else\\|elsif\\)\\_>\\|)"
+               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|while\\|loop\\|if\\|then\\|else\\|elsif\\)\\_>\\|)"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
@@ -309,7 +309,7 @@ But don't go before LIMIT."
                      ;; of the keywords inside one of them and think this is a
                      ;; statement start.
                      (progn (forward-char 1) (forward-sexp -1)))
-                    ((looking-at "cursor\\|for")
+                    ((looking-at "cursor\\|for\\|while")
                      ;; statement begins at the start of the keyword
                      (throw 'done (point)))
                     ((looking-at "then\\|else")
@@ -530,19 +530,23 @@ See also `sqlind-beginning-of-block'"
       ;; note that we might have found a loop in an "end loop;" statement.
       (or (sqlind-maybe-end-statement)
           (progn
-            (let ((loop-label (if (looking-at "<<\\([a-z0-9_]+\\)>>")
-                                  (sqlind-match-string 1) "")))
-              ;; start of loop.  this always starts a block, we only check if
-              ;; the labels match
-              (if (null sqlind-end-stmt-stack)
-                  (throw 'finished (list 'in-block 'loop loop-label))
+            (let ((posn (point)))
+	      (forward-word -1)
+	      (sqlind-beginning-of-statement)
+	      (let ((loop-label (if (looking-at "<<\\([a-z0-9_]+\\)>>")
+				    (sqlind-match-string 1) "")))
+		(goto-char posn)
+		;; start of loop.  this always starts a block, we only check if
+		;; the labels match
+		(if (null sqlind-end-stmt-stack)
+		    (throw 'finished (list 'in-block 'loop loop-label))
                   (cl-destructuring-bind (pos kind label)
                       (pop sqlind-end-stmt-stack)
                     (unless (and (eq kind 'loop)
                                  (sqlind-labels-match label loop-label))
                       (throw 'finished
-                        (list 'syntax-error
-                              "bad closing for loop block" (point) pos)))))))))))
+			     (list 'syntax-error
+				   "bad closing for loop block" (point) pos))))))))))))
 
 (defun sqlind-maybe-begin-statement ()
   "Return the syntax of a \"begin\" statement.
