@@ -531,8 +531,9 @@ See also `sqlind-beginning-of-block'"
       (or (sqlind-maybe-end-statement)
           (progn
             (let ((posn (point)))
-	      (forward-word -1)
-	      (sqlind-beginning-of-statement)
+	      (unless (looking-at "<<") ;; whe're inside an label.
+		(forward-word -1)
+		(back-to-indentation))
 	      (let ((loop-label (if (looking-at "<<\\([a-z0-9_]+\\)>>")
 				    (sqlind-match-string 1) "")))
 		(goto-char posn)
