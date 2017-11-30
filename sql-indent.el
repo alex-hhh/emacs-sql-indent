@@ -1,6 +1,7 @@
 ;;; sql-indent.el --- Support for indenting code in SQL files. -*- lexical-binding: t -*-
-;; Copyright (C) 2015 Alex Harsanyi
-;;
+
+;; Copyright (C) 2015, 2017  Free Software Foundation, Inc
+
 ;; Author: Alex Harsanyi (AlexHarsanyi@gmail.com)
 ;; Created: 27 Sep 2006
 ;; Version: 1.0
@@ -9,7 +10,7 @@
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 2 of the License, or
+;; the Free Software Foundation; either version 3 of the License, or
 ;; (at your option) any later version.
 ;;
 ;; This program is distributed in the hope that it will be useful,
@@ -18,8 +19,7 @@
 ;; GNU General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with this program; if not, write to the Free Software
-;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -40,7 +40,6 @@
 ;;; Code:
 
 (require 'sql)
-(require 'align)
 (require 'cl-lib)
 (eval-when-compile (require 'cc-defs))  ; for c-point
 
@@ -2171,6 +2170,13 @@ See also `align' and `align-rules-list'")
 
 ;;;; sqlind-minor-mode, sqlind-setup
 
+(defvar sqlind-minor-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
+    map))
+
+(defvar align-mode-rules-list)
+
 ;;;###autoload
 (define-minor-mode sqlind-minor-mode
     "Toggle SQL syntactic indentation on or off.
@@ -2183,19 +2189,16 @@ Selecting a region of text and typing `M-x align RET` will align
 the statements.  This can be used, for example, to align the 'as'
 column aliases in select statements."
   :lighter " sqlind"
-  :group 'sqlind
+  ;; :group 'sqlind  ;;FIXME: There's no such group!
   :global nil
   :init-value nil
-  (make-local-variable 'indent-line-function)
   (if sqlind-minor-mode
       (progn
-        (setq indent-line-function 'sqlind-indent-line)
-        (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
-        (setq align-mode-rules-list sqlind-align-rules))
+        (set (make-local-variable 'indent-line-function) #'sqlind-indent-line)
+        (set (make-local-variable 'align-mode-rules-list) sqlind-align-rules))
     (progn
-      (setq indent-line-function (default-value 'indent-line-function))
-      (define-key sql-mode-map [remap beginning-of-defun] 'sql-beginning-of-statement)
-      (setq align-mode-rules-list nil))))
+      (kill-local-variable 'indent-line-function)
+      (kill-local-variable 'align-mode-rules-list))))
 
 ;;;###autoload
 (defun sqlind-setup ()
@@ -2206,12 +2209,11 @@ This function is deprecated, consider using the function
   (define-key sql-mode-map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
   (setq align-mode-rules-list sqlind-align-rules))
 
+;; Local Variables:
+;; mode: emacs-lisp
+;; mode: outline-minor
+;; outline-regexp: ";;;;+"
+;; End:
+
 (provide 'sql-indent)
-
-;;; Local Variables:
-;;; mode: emacs-lisp
-;;; mode: outline-minor
-;;; outline-regexp: ";;;;+"
-;;; End:
-
 ;;; sql-indent.el ends here

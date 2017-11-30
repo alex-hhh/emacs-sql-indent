@@ -1,4 +1,6 @@
 # -*- mode: conf -*-
+sql-indent-autoloads.el
+sql-indent-pkg.el
 *.elc
 *~
 \#*\#
