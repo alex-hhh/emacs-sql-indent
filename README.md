@@ -20,7 +20,14 @@ See the [manual](./sql-indent.org) for more details.
 
 # Installation
 
-To install this package, open the file `sql-indent.el` in Emacs and type
+You can install a released version of this package
+from [GNU ELPA](http://elpa.gnu.org/packages/sql-indent.html), by running the
+following commands in Emacs:
+
+    M-x package-install RET sql-indent RET
+
+To install sql-indent from this repository, open the file `sql-indent.el` in
+Emacs and type:
 
     M-x package-install-from-buffer RET
 

@@ -33,7 +33,7 @@
 ;; SQL statements, see `sqlind-align-rules'.
 ;;
 ;; Indentation rules can be customized, for more information, see the
-;; "README.md" file or the doc strings for `sqlind-basic-offset',
+;; "sql-indent.org" file or the doc strings for `sqlind-basic-offset',
 ;; `sqlind-default-indentation-offsets-alist' and
 ;; `sqlind-indentation-syntax-symbols'.
 
