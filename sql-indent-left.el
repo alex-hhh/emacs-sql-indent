@@ -195,10 +195,16 @@ select aaa,
     (case-clause +)
     (package +)
     (package-body +)
+    (statement-continuation + sqlind-adjust-operator)
     (nested-statement-continuation 1)
     (string-continuation 0) ;; or shoult it be a begining of line or aligned with the previous block ?
                             ;; Anyway. It's really *BAD* to continue a string accross lines.
+    (select-column sqlind-indent-select-column
+		   sqlind-indent-select-keywords
+		   sqlind-adjust-operator
+		   sqlind-lone-semicolon)
     (select-column-continuation sqlind-indent-select-column
+				sqlind-indent-select-keywords
                                 sqlind-adjust-operator
                                 sqlind-lone-semicolon)
     (in-select-clause sqlind-lineup-to-clause-end
@@ -301,6 +307,22 @@ order by xxx desc,
 ;
 
 ")
+
+(defun sqlind-indent-select-keywords (syntax base-indentation)
+  "Return the indentation for a column after a SELECT DISTINCT clause.
+
+SYNTAX is the syntax of the current line, BASE-INDENTATION is the
+current indentation, which we need to update.
+
+We try to align to the KEYWORD, but if we are the
+first column after the SELECT clause we simply add
+`sqlind-basic-offset'."
+  (save-excursion
+    (goto-char (sqlind-anchor-point syntax))
+    (if (when (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
+	  (goto-char (match-beginning 1)))
+	(current-column)
+      base-indentation)))
 
 ;;;###autoload
 (defun sqlind-setup-style-left ()
