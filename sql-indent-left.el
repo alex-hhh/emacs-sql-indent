@@ -204,7 +204,6 @@ select aaa,
 		   sqlind-adjust-operator
 		   sqlind-lone-semicolon)
     (select-column-continuation sqlind-indent-select-column
-				sqlind-indent-select-keywords
                                 sqlind-adjust-operator
                                 sqlind-lone-semicolon)
     (in-select-clause sqlind-lineup-to-clause-end
@@ -319,9 +318,10 @@ first column after the SELECT clause we simply add
 `sqlind-basic-offset'."
   (save-excursion
     (goto-char (sqlind-anchor-point syntax))
-    (if (when (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
-	  (goto-char (match-beginning 1)))
-	(current-column)
+    (if (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
+	(if (match-beginning 1)
+	    (progn (goto-char (match-beginning 1)) (current-column))
+	  base-indentation)
       base-indentation)))
 
 ;;;###autoload
