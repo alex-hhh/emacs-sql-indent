@@ -199,8 +199,7 @@ select aaa,
     (nested-statement-continuation 1)
     (string-continuation 0) ;; or shoult it be a begining of line or aligned with the previous block ?
                             ;; Anyway. It's really *BAD* to continue a string accross lines.
-    (select-column sqlind-indent-select-column
-		   sqlind-indent-select-keywords
+    (select-column sqlind-indent-select-column-alt
 		   sqlind-adjust-operator
 		   sqlind-lone-semicolon)
     (select-column-continuation sqlind-indent-select-column
@@ -231,7 +230,8 @@ clear columns
 set linesize 2500
 set trimout on trimspool on
 
-select atc.column_name,
+select DISTINCT
+       atc.column_name,
        atc.data_type,
        data_length,
        data_precision,
@@ -303,26 +303,28 @@ group by aaa,
          xxx
 order by xxx desc,
          aaa asc
-;
+;")
 
-")
-
-(defun sqlind-indent-select-keywords (syntax base-indentation)
+(defun sqlind-indent-select-column-alt (syntax base-indentation)
   "Return the indentation for a column after a SELECT DISTINCT clause.
 
 SYNTAX is the syntax of the current line, BASE-INDENTATION is the
 current indentation, which we need to update.
 
-We try to align to the KEYWORD, but if we are the
-first column after the SELECT clause we simply add
-`sqlind-basic-offset'."
+Like `sqlind-indent-select-column' but we try to align to the KEYWORD,
+but if we are the first column after the SELECT clause we simply
+add `sqlind-basic-offset'."
   (save-excursion
     (goto-char (sqlind-anchor-point syntax))
-    (if (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
-	(if (match-beginning 1)
-	    (progn (goto-char (match-beginning 1)) (current-column))
-	  base-indentation)
-      base-indentation)))
+    (when (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
+      (if (match-beginning 1)
+	  (goto-char (match-beginning 1))
+	(goto-char (match-end 0))))
+    (skip-syntax-forward " ")
+    (if (or (looking-at sqlind-comment-start-skip)
+	    (looking-at "$"))
+	(+ base-indentation sqlind-basic-offset)
+      (current-column))))
 
 ;;;###autoload
 (defun sqlind-setup-style-left ()
