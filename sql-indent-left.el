@@ -67,8 +67,8 @@
 (require 'sql-indent)
 
 (defun indent-case-statement-items (syntax base-indentation)
-  ;; Look for a syntax of ((block-start when) (in-block case "") ...)
-  ;; or ((block-start else) (in-block case "") ...)
+  "Look for a SYNTAX of ((block-start when) (in-block case \"\") ...)
+or ((block-start else) (in-block case \"\") ...)."
   (let ((outer (sqlind-outer-context syntax)))
     (if (and (eq 'in-block (sqlind-syntax-symbol outer))
              (eq 'case (sqlind-syntax-keyword outer))
@@ -97,7 +97,7 @@
                       sqlind-adjust-operator
 		      sqlind-right-justify-logical-operator
 		      sqlind-lone-semicolon)
-    ;; mandatory 
+    ;; mandatory
     (select-table-continuation sqlind-indent-select-table +
                                sqlind-lone-semicolon)
     ;; rest picked up from the original indentation offsets
@@ -180,9 +180,7 @@ select aaa,
           xxx
  order by xxx desc,
           aaa asc
- ;
-
-")
+ ;")
 
 (defvar sqlind-indentation-left-offsets-alist
   `((select-clause 0)
