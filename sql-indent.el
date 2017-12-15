@@ -1959,22 +1959,23 @@ example:
 This is an indentation adjuster and needs to be added to the
 `sqlind-indentation-offsets-alist`"
   (save-excursion
-    (back-to-indentation)
-    ;; If there are non-word constituents at the beginning if the line,
-    ;; consider them an operator and line up the line to the first word of the
-    ;; line, not the operator
-    (cond ((looking-at sqlind-operator-regexp)
-	   (let ((ofs (length (match-string 0))))
-	     (forward-line -1)
-	     (end-of-line)
-	     (sqlind-backward-syntactic-ws)
-             ;; Previous function leaves us on the first non-white-space
-             ;; character.  This might be a string terminator (') char, move
-             ;; the cursor one to the left, so 'forward-sexp' works correctly.
-             (ignore-errors (forward-char 1))
-	     (forward-sexp -1)
-	     (max 0 (- (current-column) ofs))))
-	  ('t base-indentation))))
+    (with-syntax-table sqlind-syntax-table
+      (back-to-indentation)
+      ;; If there are non-word constituents at the beginning if the line,
+      ;; consider them an operator and line up the line to the first word of the
+      ;; line, not the operator
+      (cond ((looking-at sqlind-operator-regexp)
+	     (let ((ofs (length (match-string 0))))
+	       (forward-line -1)
+	       (end-of-line)
+	       (sqlind-backward-syntactic-ws)
+	       ;; Previous function leaves us on the first non-white-space
+	       ;; character.  This might be a string terminator (') char, move
+	       ;; the cursor one to the left, so 'forward-sexp' works correctly.
+	       (ignore-errors (forward-char 1))
+	       (forward-sexp -1)
+	       (max 0 (- (current-column) ofs))))
+	    ('t base-indentation)))))
 
 (defun sqlind-lone-semicolon (syntax base-indentation)
   "Indent a lone semicolon with the statement start.  For example:
