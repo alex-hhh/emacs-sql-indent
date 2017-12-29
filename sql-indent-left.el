@@ -194,13 +194,15 @@ select aaa,
     (package +)
     (package-body +)
     (statement-continuation + sqlind-adjust-operator)
+    (nested-statement-open         1)
     (nested-statement-continuation 1)
+    (nested-statement-close        sqlind-use-anchor-indentation)
     (string-continuation 0) ;; or shoult it be a begining of line or aligned with the previous block ?
                             ;; Anyway. It's really *BAD* to continue a string accross lines.
     (select-column sqlind-indent-select-column-alt
 		   sqlind-adjust-operator
 		   sqlind-lone-semicolon)
-    (select-column-continuation sqlind-indent-select-column
+    (select-column-continuation sqlind-indent-select-column-alt
                                 sqlind-adjust-operator
                                 sqlind-lone-semicolon)
     (in-select-clause sqlind-lineup-to-clause-end
