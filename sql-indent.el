@@ -185,10 +185,15 @@ statement."
     (goto-char pos)
     (catch 'found
       (while (re-search-backward "," limit 'noerror)
-        (when (sqlind-same-level-statement (point) limit)
-          (forward-char 1)
-          (sqlind-forward-syntactic-ws)
-          (throw 'found (point)))))))
+	(when (sqlind-same-level-statement (point) limit)
+	  (forward-char 1)
+	  (sqlind-forward-syntactic-ws)
+	  (throw 'found (point))))
+      ;; nothing was found in (while ...) so try to find the first column definition.
+      (goto-char limit)
+      (forward-sexp)
+      (sqlind-forward-syntactic-ws)
+      (point))))
 
 (defun sqlind-syntax (context)
   "Return the most specific syntax of CONTEXT.
@@ -1940,7 +1945,7 @@ with AND, OR or NOT to be aligned so they sit left under the WHERE clause."
           "\\s-*")
   "Regexp to match a SQL expression operator.")
 
-(defun sqlind-adjust-operator (_syntax base-indentation)
+(defun sqlind-adjust-operator (syntax base-indentation)
   "Adjust the indentation for operators in select clauses.
 
 If the line to be indented starts with an operator, the
@@ -1966,14 +1971,18 @@ This is an indentation adjuster and needs to be added to the
       ;; line, not the operator
       (cond ((looking-at sqlind-operator-regexp)
 	     (let ((ofs (length (match-string 0))))
-	       (forward-line -1)
-	       (end-of-line)
-	       (sqlind-backward-syntactic-ws)
-	       ;; Previous function leaves us on the first non-white-space
-	       ;; character.  This might be a string terminator (') char, move
-	       ;; the cursor one to the left, so 'forward-sexp' works correctly.
-	       (ignore-errors (forward-char 1))
-	       (forward-sexp -1)
+	       (if (eq (sqlind-syntax-symbol syntax)
+		       'select-column-continuation)
+		   (goto-char (sqlind-column-definition-start
+			       (point) (sqlind-anchor-point syntax)))
+		 (forward-line -1)
+		 (end-of-line)
+		 (sqlind-backward-syntactic-ws)
+		 ;; Previous function leaves us on the first non-white-space
+		 ;; character.  This might be a string terminator (') char, move
+		 ;; the cursor one to the left, so 'forward-sexp' works correctly.
+		 (ignore-errors (forward-char 1))
+		 (forward-sexp -1))
 	       (max 0 (- (current-column) ofs))))
 	    ('t base-indentation)))))
 
