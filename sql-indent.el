@@ -184,16 +184,16 @@ statement."
   (save-excursion
     (goto-char pos)
     (catch 'found
-      (unless (while (re-search-backward "," limit 'noerror)
-		(when (sqlind-same-level-statement (point) limit)
-		  (forward-char 1)
-		  (sqlind-forward-syntactic-ws)
-		  (throw 'found (point))))
-	(progn
-	  (goto-char limit)
-	  (forward-sexp)
+      (while (re-search-backward "," limit 'noerror)
+	(when (sqlind-same-level-statement (point) limit)
+	  (forward-char 1)
 	  (sqlind-forward-syntactic-ws)
-	  (throw 'found (point)))))))
+	  (throw 'found (point))))
+      ;; nothing was found in (while ...) so try to find the first column definition.
+      (goto-char limit)
+      (forward-sexp)
+      (sqlind-forward-syntactic-ws)
+      (point))))
 
 (defun sqlind-syntax (context)
   "Return the most specific syntax of CONTEXT.
@@ -1971,21 +1971,18 @@ This is an indentation adjuster and needs to be added to the
       ;; line, not the operator
       (cond ((looking-at sqlind-operator-regexp)
 	     (let ((ofs (length (match-string 0))))
-	       (goto-char
-		(if (eq (sqlind-syntax-symbol syntax)
-			'select-column-continuation)
-		    (sqlind-column-definition-start
-		     (point) (sqlind-anchor-point syntax))
-		  (forward-line -1)
-		  (end-of-line)
-		  (sqlind-backward-syntactic-ws)
-		  ;; Previous function leaves us on the first non-white-space
-		  ;; character.  This might be a string terminator (') char, move
-		  ;; the cursor one to the left, so 'forward-sexp' works correctly.
-		  (ignore-errors (forward-char 1))
-		  (forward-sexp -1)
-		  (point)
-		  ))
+	       (if (eq (sqlind-syntax-symbol syntax)
+		       'select-column-continuation)
+		   (goto-char (sqlind-column-definition-start
+			       (point) (sqlind-anchor-point syntax)))
+		 (forward-line -1)
+		 (end-of-line)
+		 (sqlind-backward-syntactic-ws)
+		 ;; Previous function leaves us on the first non-white-space
+		 ;; character.  This might be a string terminator (') char, move
+		 ;; the cursor one to the left, so 'forward-sexp' works correctly.
+		 (ignore-errors (forward-char 1))
+		 (forward-sexp -1))
 	       (max 0 (- (current-column) ofs))))
 	    ('t base-indentation)))))
 
