@@ -741,11 +741,40 @@ See also `sqlind-beginning-of-block'"
                 (progn (forward-word -1) (looking-at "\\<_begin\\_>")))
         (throw 'finished (list 'in-block 'exception))))))
 
+(defun sqlind-maybe-$$-statement ()
+  "If (point) is on a PostgreSQL $$ quote, report its syntax.
+
+PostgreSQL uses $$ to delimit SQL blocks in create statements,
+this function tries to determine if the $$ block is a begin or an
+end block and creates the appropiate syntactic context.
+
+See also `sqlind-beginning-of-block'"
+  (when (looking-at "\\$\\$")
+    (prog1 t
+      (let* ((saved-pos (point))
+             (previous-block (save-excursion
+                               (ignore-errors (forward-char -1))
+                               (cons (sqlind-beginning-of-block) (point))))
+             (previous-block-kind (nth 0 previous-block)))
+        (goto-char saved-pos)
+        (if (and (listp previous-block-kind)
+                 (eq (nth 0 previous-block-kind) 'defun-start))
+            (progn
+              (when (null sqlind-end-stmt-stack)
+                (throw 'finished (list 'in-begin-block 'defun (nth 1 previous-block-kind))))
+              (cl-destructuring-bind (pos kind _label) (pop sqlind-end-stmt-stack)
+                (unless (eq kind '$$)
+                  (throw 'finished
+                    (list 'syntax-error "bad closing for $$ begin block" (point) pos)))
+                (goto-char (cdr previous-block))))
+          ;; Assume it is an "end" statement
+          (push (list (point) '$$ "") sqlind-end-stmt-stack))))))
+
 (defconst sqlind-start-block-regexp
   (concat "\\(\\_<"
 	  (regexp-opt '("if" "then" "else" "elsif" "loop"
 			"begin" "declare" "create" "alter" "exception"
-			"procedure" "function" "end" "case") t)
+			"procedure" "function" "end" "case" "$$") t)
 	  "\\_>\\)\\|)")
   "Regexp to match the start of a block.")
 
@@ -770,6 +799,8 @@ reverse order (a stack) and is used to skip over nested blocks."
             (sqlind-maybe-begin-statement)
             (when (eq sql-product 'oracle) ; declare statements only start blocks in PL/SQL
               (sqlind-maybe-declare-statement))
+            (when (eq sql-product 'postgres)
+              (sqlind-maybe-$$-statement))
             (sqlind-maybe-create-statement)
             (sqlind-maybe-defun-statement))))
     'toplevel))
@@ -1325,7 +1356,8 @@ not a statement-continuation POS is the same as the
     ;; context
     ((and (memq syntax-symbol '(defun-start declare-statement toplevel
                                 package package-body))
-          (looking-at "begin\\_>"))
+          (or (looking-at "begin\\_>")
+              (and (eq sql-product 'postgres) (looking-at "\\$\\$"))))
      (push (cons (list 'block-start 'begin) anchor) context))
 
     ((and (memq syntax-symbol '(defun-start package package-body))
@@ -1367,7 +1399,15 @@ not a statement-continuation POS is the same as the
        (push (sqlind-refine-end-syntax
               (if (equal kind "") nil (intern kind))
               label (point) context)
-             context))))
+             context)))
+
+    ((and (eq sql-product 'postgres)
+          (not (eq syntax-symbol 'comment-continuation))
+          (looking-at "\\$\\$"))
+     (push (sqlind-refine-end-syntax
+            nil "" (point) context)
+           context))
+    )
   context))
 
 (defun sqlind-syntax-of-line ()
