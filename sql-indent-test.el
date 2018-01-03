@@ -75,10 +75,13 @@
 ;;
 ;;;; NAMING CONVENTION
 ;;
-;; If there's a problem report on GitHub (issue or pull request), use the
-;; issue number as the "tag" for the test.  For example, a test that addresses
-;; issue number 30 will have a tag "pr30", otherwise choose a short tag for
-;; the test.  With this tag the following files are created:
+;; If there's a problem report on GitHub, use the issue number as the "tag"
+;; for the test.  For example, a test that addresses issue number 30 will have
+;; a tag "pr30". If there is no issue on GitHub, use the pull request number.
+;; In this case you will have to create the pull request first, so you know
+;; the number, before you can add the tests -- sorry about that.
+;;
+;; With the issue or pull request tag the following files are created:
 ;;
 ;; * "test-data/pr30.sql" -- contains the sample SQL code that is verified
 ;;

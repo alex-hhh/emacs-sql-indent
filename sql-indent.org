@@ -123,7 +123,7 @@ You can add the following code to your init file:
       (update-clause 0)
       ,@sqlind-default-indentation-offsets-alist))
 
-  (add-hook 'sql-minor-mode-hook
+  (add-hook 'sqlind-minor-mode-hook
       (lambda ()
          (setq sqlind-indentation-offsets-alist
                my-sql-indentation-offsets-alist)))
