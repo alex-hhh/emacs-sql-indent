@@ -334,7 +334,7 @@ statements.  Have a look at their doc strings for what they do:
 
 ** Syntactic Symbols
 
-The the SQL parsing code returns a syntax definition (either a symbol or a
+The SQL parsing code returns a syntax definition (either a symbol or a
 list) and an anchor point, which is a buffer position.  The syntax symbols can
 be used to define how to indent each line.  The following syntax symbols are
 defined for SQL code:
