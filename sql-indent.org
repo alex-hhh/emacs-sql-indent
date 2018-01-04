@@ -248,8 +248,8 @@ line
 
 **** sqlind-lineup-open-paren-to-anchor
 
-if the line starts with an open paren, discard the current offset and return
-the column of the anchor point.
+if the line starts with an open parenthesis, discard the current
+offset and return the column of the anchor point.
 
 **** sqlind-lone-semicolon
 
