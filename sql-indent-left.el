@@ -197,8 +197,8 @@ select aaa,
     (nested-statement-open         1)
     (nested-statement-continuation 1)
     (nested-statement-close        sqlind-use-anchor-indentation)
-    (string-continuation 0) ;; or shoult it be a begining of line or aligned with the previous block ?
-                            ;; Anyway. It's really *BAD* to continue a string accross lines.
+    (string-continuation 0) ;; or should it be a beginning of line or aligned with the previous block ?
+                            ;; Anyway. It's really *BAD* to continue a string across lines.
     (select-column sqlind-indent-select-column-alt
 		   sqlind-adjust-operator
 		   sqlind-lone-semicolon)
