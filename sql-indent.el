@@ -784,6 +784,25 @@ See also `sqlind-beginning-of-block'"
 END-STATEMENT-STACK contains a list of \"end\" syntaxes in
 reverse order (a stack) and is used to skip over nested blocks."
   (interactive)
+  ;; This function works as follows: `sqlind-start-block-regexp` defines the
+  ;; keywords where it stops to inspect the code.  Each time it stops at one
+  ;; of these keywords, it checks to see if the keyword is inside a comment or
+  ;; string.  If the keyworkd is not inside a comment or string, the
+  ;; `sqlind-maybe-*` functions are called to check if the keyword is valid.
+  ;; Each of these functions will do one of the following:
+  ;;
+  ;; * throw a syntax object with a 'finished tag, if they decide that the
+  ;;   keyword is valid
+  ;;
+  ;; * return t to indicate that they decided that the keyword is not valid
+  ;;   and `sqlind-beginning-of-block` should search for the next keyword
+  ;;
+  ;; * return nil to indicate that they don't recognize the keyword and
+  ;;   another `sqlind-maybe-*` function should be called
+  ;;
+  ;; Some of these `sqlind-maybe-*` functions are specific to the
+  ;; `sql-product` and are only invoked for the speficied SQL dialect.
+  
   (catch 'finished
     (let ((sqlind-end-stmt-stack end-statement-stack))
       (while (re-search-backward sqlind-start-block-regexp sqlind-search-limit 'noerror)
