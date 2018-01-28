@@ -1,5 +1,13 @@
 language: emacs-lisp
-sudo: false
+
+# Require sudo because Emacs needs to disable ASLR to dump, only possible on
+# sudo-enabled environment.  See also
+# https://github.com/travis-ci/travis-ci/issues/9061
+# https://github.com/flycheck/emacs-travis/issues/13
+
+sudo: required
+dist: trusty
+
 cache:
   - directories:
       # Cache stable Emacs binaries (saves 1min per job)
