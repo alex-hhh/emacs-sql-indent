@@ -4,7 +4,7 @@
 
 ;; Author: Alex Harsanyi (AlexHarsanyi@gmail.com)
 ;; Created: 27 Sep 2006
-;; Version: 1.0
+;; Version: 1.1
 ;; Keywords: languages sql
 ;; Homepage: https://github.com/alex-hhh/emacs-sql-indent
 ;;
@@ -23,19 +23,15 @@
 
 ;;; Commentary:
 ;;
-;; Add syntax-based indentation when editing SQL code: TAB indents the current
-;; line based on the syntax of the SQL code on previous lines.
-;; `sqlind-minor-mode' is a minor mode that enables/disables this
-;; functionality. To setup syntax-based indentation for every SQL buffer, add
-;; `sqlind-minor-mode' to `sql-mode-hook'.
+;; `sqlind-minor-mode' is a minor mode that enables syntax-based indentation
+;; for `sql-mode' buffers: the TAB key indents the current line based on the
+;; SQL code on previous lines.  To setup syntax-based indentation for every
+;; SQL buffer, add `sqlind-minor-mode' to `sql-mode-hook'.  Indentation rules
+;; are flexible and can be customized to match your personal coding style.
+;; For more information, see the "sql-indent.org" file.
 ;;
 ;; The package also defines align rules so that the `align' function works for
 ;; SQL statements, see `sqlind-align-rules'.
-;;
-;; Indentation rules can be customized, for more information, see the
-;; "sql-indent.org" file or the doc strings for `sqlind-basic-offset',
-;; `sqlind-default-indentation-offsets-alist' and
-;; `sqlind-indentation-syntax-symbols'.
 
 ;;; Code:
 

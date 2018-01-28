@@ -14,14 +14,7 @@ C and C++ code.
 
 The package also defines align rules so that the ~align~ function works for
 SQL statements, see ~sqlind-align-rules~ for which rules are defined.  This
-can be used to align multiple lines around equal signs or "as" statements,
-like this.
-
-~sqlind-minor-mode~ together with the align rules (see below) can assist in
-writing tidy SQL code or formatting existing SQL code.  The indentation rules
-are customizable, so you can adapt it to match your own indentation
-preferences.
-
+can be used to align multiple lines around equal signs or "as" statements.
 Here is an example of alignment rules:
 
 #+BEGIN_SRC sql
@@ -43,6 +36,10 @@ To use this feature, select the region you want to align and type:
 #+BEGIN_SRC text
   M-x align RET
 #+END_SRC
+
+~sqlind-minor-mode~ together with the align rules can assist in writing tidy
+SQL code or formatting existing SQL code.  The indentation rules are
+customizable, so you can adapt it to match your own indentation preferences.
 
 * Installation
 
