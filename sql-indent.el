@@ -1,8 +1,8 @@
 ;;; sql-indent.el --- Support for indenting code in SQL files. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015, 2017  Free Software Foundation, Inc
+;; Copyright (C) 2015, 2017-2018  Free Software Foundation, Inc
 
-;; Author: Alex Harsanyi (AlexHarsanyi@gmail.com)
+;; Author: Alex Harsanyi <AlexHarsanyi@gmail.com>
 ;; Created: 27 Sep 2006
 ;; Version: 1.1
 ;; Keywords: languages sql
