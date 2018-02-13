@@ -37,7 +37,6 @@
 
 (require 'sql)
 (require 'cl-lib)
-(eval-when-compile (require 'cc-defs))  ; for c-point
 
 ;;;; General setup
 
@@ -1890,7 +1889,7 @@ BASE-INDENTATION."
     (if (and (looking-at "\\s *--")
 	     (progn
 	       (forward-line -1)
-	       (re-search-forward "--" (c-point 'eol) t)))
+	       (re-search-forward "--" (line-end-position) t)))
 	(progn
 	  (goto-char (match-beginning 0))
 	  (current-column))
@@ -1912,7 +1911,7 @@ first column after the SELECT clause we simply add
       (goto-char (match-end 0)))
     (skip-syntax-forward " ")
     (if (or (looking-at sqlind-comment-start-skip)
-            (looking-at "$"))
+            (eolp))
         (+ base-indentation sqlind-basic-offset)
       (current-column))))
 
@@ -1930,7 +1929,7 @@ table, we simply add `sqlind-basic-offset'."
       (goto-char (match-end 0)))
     (skip-syntax-forward " ")
     (if (or (looking-at sqlind-comment-start-skip)
-            (looking-at "$"))
+            (eolp))
         (+ base-indentation sqlind-basic-offset)
       (current-column))))
 
@@ -1952,7 +1951,7 @@ Argument BASE-INDENTATION is updated."
       (forward-char (1+ (length clause)))
       (skip-syntax-forward " ")
       (if (or (looking-at sqlind-comment-start-skip)
-              (looking-at "$"))
+              (eolp))
           ;; if the clause is on a line by itself, indent this line with a
           ;; sqlind-basic-offset
           (+ base-indentation sqlind-basic-offset)
