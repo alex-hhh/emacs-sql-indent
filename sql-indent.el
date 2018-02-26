@@ -371,7 +371,7 @@ But don't go before LIMIT."
 ;;;;; Find the syntax and beginning of the current block
 
 (defconst sqlind-end-statement-regexp
-  "\\_<end\\_>\\(?:[ \n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \n\r\f]*\\)\\([a-z0-9_]+\\)?"
+  "\\_<end\\_>\\(?:[ \t\n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \t\n\r\f]*\\)\\([a-z0-9_]+\\)?"
   "Match an end of statement.
 Matches a string like \"end if|loop|case MAYBE-LABEL\".")
 
@@ -421,7 +421,7 @@ See also `sqlind-beginning-of-block'"
 	;; a then keyword only starts a block when it is part of an
 	;; if, case/when or exception statement
 	(cond
-	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \n\r\f]*\\)\\(\\(?:els\\)?if\\)\\_>")
+	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \t\n\r\f]*\\)\\(\\(?:els\\)?if\\)\\_>")
 	   (let ((if-label (sqlind-match-string 1))
 		 (if-kind (intern (sqlind-match-string 2)))) ; can be if or elsif
 	     (setq if-label (if if-label (substring if-label 2 -2) ""))
@@ -437,7 +437,7 @@ See also `sqlind-beginning-of-block'"
 		       (throw 'finished
 			 (list 'syntax-error
 			       "bad closing for if block" (point) pos))))))))
-	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \n\r\f]*\\)case\\_>")
+	  ((looking-at "\\(<<[a-z0-9_]+>>\\)?\\(?:[ \t\n\r\f]*\\)case\\_>")
 	   ;; find the nearest when block, but only if there are no
 	   ;; end statements in the stack
 	   (let ((case-label (sqlind-match-string 1)))
@@ -624,23 +624,63 @@ See also `sqlind-beginning-of-block'"
     (throw 'finished
       (if (null sqlind-end-stmt-stack)
 	  'declare-statement
-	  (list 'syntax-error "nested declare block" (point) (point))))))
+        (list 'syntax-error "nested declare block" (point) (point))))))
+
+(defun sqlind-maybe-skip-mysql-create-options ()
+  "Move point past any MySQL option declarations.
+
+Statements like \"CREATE VIEW\" or \"CREATE TABLE\" can have
+various options betwen the CREATE keyword and the thing being
+created.  If such options exist at (point) the cursor is moved
+past them.
+
+Currently we move over the following options:
+
+  TEMPORARY
+  ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}
+  DEFINER = { user | CURENT_USER }
+  SQL SECURITY { DEFINER | INVOKER }
+
+We don't consider if the options are valid or not for the thing
+being created.  We just skip any and all of them that are
+present."
+  (when (eq sql-product 'mysql)
+    (catch 'finished
+      (while t
+        (cond
+          ((looking-at "temporary\\_>")
+           (goto-char (match-end 0))
+           (sqlind-forward-syntactic-ws))
+          ((looking-at "\\(definer\\|algorithm\\)\\(\\s-\\|[\n]\\)*=\\(\\s-\\|[\n]\\)*\\S-+")
+           (goto-char (match-end 0))
+           (sqlind-forward-syntactic-ws))
+          ((looking-at "sql\\(\\s-\\|[\n]\\)+security\\(\\s-\\|[\n]\\)+\\S-+")
+           (goto-char (match-end 0))
+           (sqlind-forward-syntactic-ws))
+          (t (throw 'finished nil)))))))
 
 (defun sqlind-maybe-create-statement ()
   "If (point) is on a CREATE statement, report its syntax.
 See also `sqlind-beginning-of-block'"
-  (when (or (looking-at "create\\_>\\(?:[ \n\r\f]+\\)\\(or\\(?:[ \n\r\f]+\\)replace\\_>\\)?")
+  (when (or (looking-at "create\\_>\\(?:[ \t\n\r\f]+\\)\\(or\\(?:[ \t\n\r\f]+\\)replace\\_>\\)?")
             (looking-at "alter\\_>"))
     (prog1 t                            ; make sure we return t
       (save-excursion
 	;; let's see what are we creating
 	(goto-char (match-end 0))
         (sqlind-forward-syntactic-ws)
+        (sqlind-maybe-skip-mysql-create-options)
 	(let ((what (intern (downcase (buffer-substring-no-properties
 				       (point)
 				       (progn (forward-word) (point))))))
 	      (name (downcase (buffer-substring-no-properties
-			       (progn (sqlind-forward-syntactic-ws) (point))
+			       (progn (sqlind-forward-syntactic-ws)
+                                      ;; Skip over a possible "if (not)
+                                      ;; exists", to get the actual name
+                                      (when (looking-at "if\\(\\s-\\|[\n]\\)+\\(not\\)?\\(\\s-\\|[\n]\\)exists")
+                                        (goto-char (match-end 0))
+                                        (sqlind-forward-syntactic-ws))
+                                      (point))
 			       (progn (skip-syntax-forward "w_()") (point))))))
 	  (when (and (eq what 'package) (equal name "body"))
 	    (setq what 'package-body)
@@ -678,7 +718,7 @@ See also `sqlind-beginning-of-block'"
   "If (point) is on a procedure definition statement, report its syntax.
 See also `sqlind-beginning-of-block'"
   (catch 'exit
-    (when (looking-at "\\(procedure\\|function\\)\\(?:[ \n\r\f]+\\)\\([a-z0-9_]+\\)")
+    (when (looking-at "\\(procedure\\|function\\)\\(?:[ \t\n\r\f]+\\)\\([a-z0-9_]+\\)")
       (prog1 t                          ; make sure we return t
 	(let ((proc-name (sqlind-match-string 2)))
 	  ;; need to find out if this is a procedure/function
@@ -690,7 +730,7 @@ See also `sqlind-beginning-of-block'"
 	    (when (looking-at "(")
 	      (ignore-errors (forward-sexp 1))
 	      (sqlind-forward-syntactic-ws))
-	    (when (looking-at "return\\(?:[ \n\r\f]+\\)\\([a-z0-9_.]+\\(?:%\\(?:row\\)?type\\)?\\)")
+	    (when (looking-at "return\\(?:[ \t\n\r\f]+\\)\\([a-z0-9_.]+\\(?:%\\(?:row\\)?type\\)?\\)")
 	      (goto-char (match-end 0))
 	      (sqlind-forward-syntactic-ws))
 	    (when (looking-at ";")
@@ -1390,9 +1430,10 @@ not a statement-continuation POS is the same as the
        (when (sqlind-search-backward pos "when\\_>" anchor)
          (push (cons '(in-block when) (point)) context))))
 
-    ;; indenting the select clause inside a view
+    ;; indenting the select clause inside a view or a "create table as"
+    ;; statement.
     ((and (eq syntax-symbol 'create-statement)
-          (eq (nth 1 syntax) 'view))
+          (memq (nth 1 syntax) '(view table)))
      (goto-char anchor)
      (catch 'done
        (while (re-search-forward "\\bselect\\b" pos 'noerror)
