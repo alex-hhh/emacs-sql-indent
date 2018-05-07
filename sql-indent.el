@@ -7,6 +7,7 @@
 ;; Version: 1.2
 ;; Keywords: languages sql
 ;; Homepage: https://github.com/alex-hhh/emacs-sql-indent
+;; Package-Requires: ((cl-lib "0.5"))
 ;;
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
