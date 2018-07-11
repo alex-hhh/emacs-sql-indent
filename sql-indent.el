@@ -939,10 +939,7 @@ reverse order (a stack) and is used to skip over nested blocks."
    "\\)\\_>"))
 
 (defconst sqlind-select-join-regexp
-  (concat "\\b"
-	  (regexp-opt '("inner" "left" "right" "natural" "cross") t)
-	  "[ \t\r\n\f]*join"
-	  "\\b"))
+  (regexp-opt '("inner" "left" "right" "natural" "cross") 'symbols))
 
 (defun sqlind-syntax-in-select (pos start)
   "Return the syntax ar POS which is inside a \"select\" statement at START."
@@ -991,22 +988,28 @@ reverse order (a stack) and is used to skip over nested blocks."
 		 (when (or (looking-at "on")
 			   (progn (forward-word -1) (looking-at "on")))
 		   ;; look for the join start, that will be the anchor
-                   (when (sqlind-search-backward (point) sqlind-select-join-regexp start)
-                     (throw 'finished
-                       (cons 'select-join-condition (point))))))
+                   (when (sqlind-search-backward (point) "\\bjoin\\b" start)
+                     (let ((candidate (point)))
+                       (forward-char -1)
+                       (sqlind-backward-syntactic-ws)
+                       (backward-word)
+                       (throw 'finished
+                         (if (looking-at sqlind-select-join-regexp)
+                             (cons 'select-join-condition (point))
+                           (cons 'select-join-condition candidate)))))))
 
-		 ;; if this line starts with a ',' or the previous
-		 ;; line starts with a ',', we have a new table
-		 (goto-char pos)
-		 (when (or (looking-at ",")
-			   (progn
-                             (sqlind-backward-syntactic-ws)
-			     (looking-at ",")))
-		   (throw 'finished (cons 'select-table match-pos)))
-
-		 ;; otherwise, we continue the table definition from
-		 ;; the previous line.
-		 (throw 'finished (cons 'select-table-continuation match-pos)))
+	       ;; if this line starts with a ',' or the previous line starts
+	       ;; with a ',', we have a new table
+	       (goto-char pos)
+	       (when (or (looking-at ",")
+			 (progn
+                           (sqlind-backward-syntactic-ws)
+			   (looking-at ",")))
+		 (throw 'finished (cons 'select-table match-pos)))
+               
+	       ;; otherwise, we continue the table definition from the
+	       ;; previous line.
+	       (throw 'finished (cons 'select-table-continuation match-pos)))
 
 	      (t
 	       (throw 'finished
