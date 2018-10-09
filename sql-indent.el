@@ -245,6 +245,14 @@ symbols and their meaning."
         (t
          (sqlind-find-context syntax-symbol (sqlind-outer-context context)))))
 
+(defun sqlind-looking-at-begin-transaction ()
+  "Return t if the point is on a \"begin transaction\" statement."
+  (and (looking-at "begin")
+       (save-excursion
+         (forward-word 1)
+         (sqlind-forward-syntactic-ws)
+         (looking-at "transaction"))))
+
 ;;;; Syntactic analysis of SQL code
 
 ;;;;; Find the beginning of the current statement
@@ -330,6 +338,10 @@ But don't go before LIMIT."
                      ;; assignment statements start at the assigned variable
                      (sqlind-backward-syntactic-ws)
                      (forward-sexp -1)
+                     (throw 'done (point)))
+                    ((sqlind-looking-at-begin-transaction)
+                     ;; This is a "begin transaction" call, statement begins
+                     ;; at "begin", see #66
                      (throw 'done (point)))
                     ((not (sqlind-in-comment-or-string (point)))
                      (throw 'done candidate-pos))))))))))
@@ -556,7 +568,7 @@ keywords in program code are matched, not the ones inside
 expressions.
 
 See also `sqlind-beginning-of-block'"
-  (when (looking-at "begin")
+  (when (and (looking-at "begin") (not (sqlind-looking-at-begin-transaction)))
     ;; a begin statement starts a block unless it is the first begin in a
     ;; procedure over which we need to skip it.
     (prog1  t                           ; make sure we return t
@@ -1491,7 +1503,8 @@ procedure block."
 
         (goto-char context-start)
         (when (or (>= context-start pos)
-                  (looking-at sqlind-start-block-regexp))
+                  (and (looking-at sqlind-start-block-regexp)
+                       (not (sqlind-looking-at-begin-transaction))))
           (goto-char pos)
           ;; if we are at the start of a statement, or the nearest statement
           ;; starts after us, make the enclosing block the starting context
