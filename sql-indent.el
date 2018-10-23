@@ -702,6 +702,10 @@ See also `sqlind-beginning-of-block'"
 			 (progn (sqlind-forward-syntactic-ws) (point))
 			 (progn (skip-syntax-forward "w_()") (point))))))
 
+          ;; Keep just the name, not the argument list
+          (when (string-match "\\(.*?\\)(" name)
+            (setq name (match-string 1 name)))
+
 	  (if (memq what '(procedure function package package-body))
 	      ;; check is name is in the form user.name, if so then suppress user part.
 	      (progn
@@ -799,31 +803,36 @@ end block and creates the appropiate syntactic context.
 See also `sqlind-beginning-of-block'"
   (when (looking-at "\\$\\$")
     (prog1 t
-      (let* ((saved-pos (point))
-             (previous-block (save-excursion
-                               (ignore-errors (forward-char -1))
-                               (cons (sqlind-beginning-of-block) (point))))
-             (previous-block-kind (nth 0 previous-block)))
-        (goto-char saved-pos)
-        (if (and (listp previous-block-kind)
-                 (eq (nth 0 previous-block-kind) 'defun-start))
-            (progn
-              (when (null sqlind-end-stmt-stack)
-                (throw 'finished (list 'in-begin-block 'defun (nth 1 previous-block-kind))))
-              (cl-destructuring-bind (pos kind _label) (pop sqlind-end-stmt-stack)
-                (unless (eq kind '$$)
-                  (throw 'finished
-                    (list 'syntax-error "bad closing for $$ begin block" (point) pos)))
-                (goto-char (cdr previous-block))))
-          ;; Assume it is an "end" statement
-          (push (list (point) '$$ "") sqlind-end-stmt-stack))))))
+      (let* ((saved-pos (point)))
+        (ignore-errors (forward-char -1))
+        (sqlind-backward-syntactic-ws)
+        (cond ((looking-at ";")
+               ;; Assume the $$ is ending a statement (previous line is a ';'
+               ;; which ends another statement)
+               (push (list saved-pos '$$ "") sqlind-end-stmt-stack)
+               (goto-char saved-pos))
+              ((null sqlind-end-stmt-stack)
+               (sqlind-beginning-of-statement)
+               (let ((syntax (catch 'finished
+                               (sqlind-maybe-create-statement)
+                               (sqlind-maybe-defun-statement)
+                               'toplevel)))
+                 (if (and (listp syntax) (eq (nth 0 syntax) 'defun-start))
+                     (throw 'finished (list 'in-begin-block 'defun (nth 1 syntax)))
+                   (throw 'finished (list 'in-begin-block syntax nil)))))
+              (t
+               (sqlind-beginning-of-statement)
+               (cl-destructuring-bind (pos kind _label) (pop sqlind-end-stmt-stack)
+                 (unless (eq kind '$$)
+                   (throw 'finished
+                     (list 'syntax-error "bad closing for $$ begin block" (point) pos))))))))))
 
 (defconst sqlind-start-block-regexp
   (concat "\\(\\_<"
 	  (regexp-opt '("if" "then" "else" "elsif" "loop"
 			"begin" "declare" "create" "alter" "exception"
-			"procedure" "function" "end" "case" "$$") t)
-	  "\\_>\\)\\|)")
+			"procedure" "function" "end" "case") t)
+	  "\\_>\\)\\|)\\|\\$\\$")
   "Regexp to match the start of a block.")
 
 (defun sqlind-beginning-of-block (&optional end-statement-stack)
@@ -2294,7 +2303,7 @@ See also `align' and `align-rules-list'")
 
 (defvar sqlind-minor-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [remap beginning-of-defun] 'sqlind-beginning-of-statement)
+    (define-key map [remap beginning-of-defun] 'sqlind-beginning-of-block)
     map))
 
 (defvar align-mode-rules-list)
