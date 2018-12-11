@@ -140,7 +140,7 @@ to LIMIT and nil is returned."
   (let ((done nil))
     (while (and (not done)
                 (re-search-backward regexp limit 'noerror))
-      (unless (sqlind-in-comment-or-string (point))
+      (when (sqlind-same-level-statement (point) start)
         (setq done (point))))
     done))
 
@@ -163,12 +163,13 @@ block label might be empty."
 (defun sqlind-same-level-statement (point start)
   "Return t if POINT is at the same syntactic level as START.
 This means that POINT is at the same nesting level and not inside
-a strinf or comment."
+a string or comment."
   (save-excursion
-    (let ((parse-info (parse-partial-sexp start point)))
-      (not (or (nth 3 parse-info)                 ; inside a string
-               (nth 4 parse-info)                 ; inside a comment
-               (> (nth 0 parse-info) 0))))))      ; inside a nested paren
+    (let ((ppss-point (syntax-ppss point))
+          (ppss-start (syntax-ppss start)))
+      (and (equal (nth 3 ppss-point) (nth 3 ppss-start)) ; string
+           (equal (nth 4 ppss-start) (nth 4 ppss-start)) ; comment
+           (= (nth 0 ppss-point) (nth 0 ppss-start)))))) ; same nesting
 
 (defun sqlind-column-definition-start (pos limit)
   "Find the beginning of a column definition in a select statement.
@@ -1002,9 +1003,9 @@ reverse order (a stack) and is used to skip over nested blocks."
 	       (forward-char -1)
 	       (sqlind-backward-syntactic-ws)
 	       (unless (looking-at ",")
-		 ;; yep, we are in the from section.
-		 ;; if this line starts with 'on' or the previous line
-		 ;; ends with 'on' we have a join condition
+		 ;; We are in the from section.  If this line starts with 'on'
+		 ;; or the previous line ends with 'on' we have a join
+		 ;; condition
 		 (goto-char pos)
 		 (when (or (looking-at "on")
 			   (progn (forward-word -1) (looking-at "on")))
