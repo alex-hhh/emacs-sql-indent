@@ -948,7 +948,7 @@ reverse order (a stack) and is used to skip over nested blocks."
 (defconst sqlind-select-clauses-regexp
   (concat
    "\\_<\\("
-   "\\(union\\|intersect\\|minus\\)?[ \t\r\n\f]*select\\|"
+   "\\(\\(union\\(\\s-+all\\)?\\)\\|intersect\\|minus\\|except\\)?[ \t\r\n\f]*select\\|"
    "\\(bulk[ \t\r\n\f]+collect[ \t\r\n\f]+\\)?into\\|"
    "from\\|"
    "where\\|"
@@ -961,7 +961,7 @@ reverse order (a stack) and is used to skip over nested blocks."
    "\\)\\_>"))
 
 (defconst sqlind-select-join-regexp
-  (regexp-opt '("inner" "left" "right" "natural" "cross") 'symbols))
+  (regexp-opt '("inner" "left" "right" "natural" "cross" "full") 'symbols))
 
 (defconst sqlind-join-condition-regexp
   (regexp-opt '("on" "using" "and" "or") 'symbols))
@@ -2180,7 +2180,7 @@ it will indent lines starting with JOIN keywords to line up with
 the FROM keyword."
   (save-excursion
     (back-to-indentation)
-    (if (looking-at "\\b\\(\\(inner\\|outer\\|cross\\)\\s-+\\)?join\\b")
+    (if (looking-at (concat "\\b\\(" sqlind-select-join-regexp "\\s-+\\)?join\\b"))
         (sqlind-lineup-to-anchor syntax base-indentation)
       base-indentation)))
 
