@@ -640,7 +640,7 @@ See also `sqlind-beginning-of-block'"
 	  'declare-statement
         (list 'syntax-error "nested declare block" (point) (point))))))
 
-(defun sqlind-maybe-skip-mysql-create-options ()
+(defun sqlind-maybe-skip-create-options ()
   "Move point past any MySQL option declarations.
 
 Statements like \"CREATE VIEW\" or \"CREATE TABLE\" can have
@@ -648,30 +648,78 @@ various options betwen the CREATE keyword and the thing being
 created.  If such options exist at (point) the cursor is moved
 past them.
 
-Currently we move over the following options:
+Currently we move over the following options, for different
+products:
+
+MySQL:
 
   TEMPORARY
   ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}
   DEFINER = { user | CURENT_USER }
   SQL SECURITY { DEFINER | INVOKER }
 
+PostgresSQL
+
+  TEMP
+  TEMPORARY
+  GLOBAL
+  LOCAL
+  UNLOGGED
+  MATERIALIZED
+
+Oracle
+
+  PRIVATE
+  TEMP
+  TEMPORARY
+  MATERIALIZED
+
 We don't consider if the options are valid or not for the thing
 being created.  We just skip any and all of them that are
 present."
-  (when (eq sql-product 'mysql)
-    (catch 'finished
-      (while t
-        (cond
-          ((looking-at "temporary\\_>")
-           (goto-char (match-end 0))
-           (sqlind-forward-syntactic-ws))
-          ((looking-at "\\(definer\\|algorithm\\)\\(\\s-\\|[\n]\\)*=\\(\\s-\\|[\n]\\)*\\S-+")
-           (goto-char (match-end 0))
-           (sqlind-forward-syntactic-ws))
-          ((looking-at "sql\\(\\s-\\|[\n]\\)+security\\(\\s-\\|[\n]\\)+\\S-+")
-           (goto-char (match-end 0))
-           (sqlind-forward-syntactic-ws))
-          (t (throw 'finished nil)))))))
+  (cond
+    ((eq sql-product 'mysql)
+     (catch 'finished
+       (while t
+         (cond
+           ((looking-at "temporary\\_>")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           ((looking-at "\\(definer\\|algorithm\\)\\(\\s-\\|[\n]\\)*=\\(\\s-\\|[\n]\\)*\\S-+")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           ((looking-at "sql\\(\\s-\\|[\n]\\)+security\\(\\s-\\|[\n]\\)+\\S-+")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           (t (throw 'finished nil))))))
+    ((eq sql-product 'postgres)
+     (catch 'finished
+       (while t
+         (cond
+           ((looking-at "temp\\(orary\\)?\\_>")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           ((looking-at "\\(global\\|local\\|unlogged\\)\\_>")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           ((looking-at "materialized\\_>")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           (t (throw 'finished nil))))))
+    ((eq sql-product 'oracle)
+     (catch 'finished
+       (while t
+         (cond
+           ((looking-at "temp\\(orary\\)\\_>")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           ((looking-at "materialized\\_>")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           ((looking-at "private\\_>")
+            (goto-char (match-end 0))
+            (sqlind-forward-syntactic-ws))
+           (t (throw 'finished nil))))))))
 
 (defun sqlind-maybe-create-statement ()
   "If (point) is on a CREATE statement, report its syntax.
@@ -683,7 +731,7 @@ See also `sqlind-beginning-of-block'"
 	;; let's see what are we creating
 	(goto-char (match-end 0))
         (sqlind-forward-syntactic-ws)
-        (sqlind-maybe-skip-mysql-create-options)
+        (sqlind-maybe-skip-create-options)
 	(let ((what (intern (downcase (buffer-substring-no-properties
 				       (point)
 				       (progn (forward-word) (point))))))
