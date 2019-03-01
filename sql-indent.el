@@ -385,7 +385,7 @@ But don't go before LIMIT."
 ;;;;; Find the syntax and beginning of the current block
 
 (defconst sqlind-end-statement-regexp
-  "\\_<end\\_>\\(?:[ \t\n\r\t]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \t\n\r\f]*\\)\\([a-z0-9_]+\\)?"
+  "\\_<end\\_>\\(?:[ \t\n\r\f]*\\)\\(if\\_>\\|loop\\_>\\|case\\_>\\)?\\(?:[ \t\n\r\f]*\\)\\([a-z0-9_]+\\)?"
   "Match an end of statement.
 Matches a string like \"end if|loop|case MAYBE-LABEL\".")
 
