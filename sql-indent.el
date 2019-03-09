@@ -40,6 +40,10 @@
 (require 'cl-lib)
 
 ;;;; General setup
+(defgroup sqlind nil
+  "SQL indentation engine."
+  :prefix "sqlind-"
+  :group 'sql)
 
 (defvar sqlind-syntax-table
   (let ((table (make-syntax-table)))
@@ -2389,7 +2393,7 @@ Selecting a region of text and typing `M-x align RET` will align
 the statements.  This can be used, for example, to align the 'as'
 column aliases in select statements."
   :lighter " sqlind"
-  ;; :group 'sqlind  ;;FIXME: There's no such group!
+  :group 'sqlind
   :global nil
   :init-value nil
   (if sqlind-minor-mode
