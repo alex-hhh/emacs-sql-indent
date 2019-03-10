@@ -134,7 +134,7 @@ whitespace, or at the end of the buffer."
 (defun sqlind-search-backward (start regexp limit)
   "Search for REGEXP from START backward until LIMIT.
 Finds a match that is not inside a comment or string, moves point
-to the match and returns it. If no match is found, point is moved
+to the match and returns it.  If no match is found, point is moved
 to LIMIT and nil is returned."
   (goto-char start)
   (let ((done nil))
@@ -479,7 +479,7 @@ See also `sqlind-beginning-of-block'"
            nil))))))
 
 (defun sqlind-good-if-candidate ()
-  "Return true if point is on an actual if statement.
+  "Return non-nil if point is on an actual if statement.
 We try to avoid false positives, like \"end if\" or the various
 \"drop STUFF if exists\" variants."
   (and (looking-at "if")
@@ -504,7 +504,7 @@ We try to avoid false positives, like \"end if\" or the various
                        "bad closing for if block" (point) pos))))))))
 
 (defun sqlind-maybe-case-statement ()
-  "If (point) is on a case statement"
+  "If (point) is on a case statement."
   (when (looking-at "case")
     (save-excursion
       (sqlind-backward-syntactic-ws)
@@ -1656,16 +1656,16 @@ The following syntax symbols are defined for SQL code:
   are buffer locations denoting the problematic region.  ANCHOR
   is undefined for this syntax info
 
-- in-comment -- line is inside a multi line comment, ANCHOR is
+- `in-comment' -- line is inside a multi line comment, ANCHOR is
   the start of the comment.
 
-- comment-start -- line starts with a comment.  ANCHOR is the
+- `comment-start' -- line starts with a comment.  ANCHOR is the
   start of the enclosing block.
 
-- in-string -- line is inside a string, ANCHOR denotes the start
+- `in-string' -- line is inside a string, ANCHOR denotes the start
   of the string.
 
-- toplevel -- line is at toplevel (not inside any programming
+- `toplevel' -- line is at toplevel (not inside any programming
   construct).  ANCHOR is usually (point-min).
 
 - (in-block BLOCK-KIND LABEL) -- line is inside a block
@@ -1778,7 +1778,7 @@ clause (select, from, where, etc) in which the current point is.
   table was defined and a new one is about to start.
 
 - select-table-continuation -- line is inside the from clause,
-  inside a table definition which starts on a previous line. Note
+  inside a table definition which starts on a previous line.  Note
   that ANCHOR still points to the start of the select statement
   itself.
 
@@ -2265,7 +2265,7 @@ statement.  For example:
   )
 
 This function only makes sense in a
-'nested-statement-continuation sytnax indentation rule."
+'nested-statement-continuation SYTNAX indentation rule."
   (save-excursion
     (goto-char (sqlind-anchor-point syntax))
     (forward-char 1)
