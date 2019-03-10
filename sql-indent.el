@@ -84,7 +84,7 @@ constituents so that syntactic navigation works over them.")
 (defconst sqlind-comment-start-skip "\\(--+\\|/\\*+\\)\\s *"
   "Regexp to match the start of a SQL comment.")
 
-(defconst sqlind-comment-end "\\*+\\/"
+(defconst sqlind-comment-end "\\*+/"
   "Regexp to match the end of a multiline SQL comment.")
 
 (defvar sqlind-comment-prefix "\\*+\\s "
