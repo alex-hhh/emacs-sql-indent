@@ -803,6 +803,14 @@ See also `sqlind-beginning-of-block'"
 	      ;; not a procedure after all.
 	      (throw 'exit nil)))
 
+          ;; Find out if it is a drop procedure or function statement
+          (save-excursion
+            (sqlind-backward-syntactic-ws)
+            (forward-word -1)
+            (when (looking-at "drop")
+              ;; not a procedure after all
+              (throw 'exit nil)))
+
 	  ;; so it is a definition
 
 	  ;; if the procedure starts with "create or replace", move
