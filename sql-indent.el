@@ -309,7 +309,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (> (point) (or limit (point-min)))
         (when (re-search-backward
-               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|while\\|loop\\|if\\|then\\|else\\|elsif\\)\\_>\\|)"
+               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|while\\|loop\\|if\\|then\\|else\\|elsif\\|elseif\\)\\_>\\|)"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
@@ -321,6 +321,9 @@ But don't go before LIMIT."
                     ((looking-at "cursor\\|for\\|while")
                      ;; statement begins at the start of the keyword
                      (throw 'done (point)))
+                    ((looking-at "else?if")
+                     ;; statement begins at the start of the keyword
+                     (throw 'done (point)))
                     ((looking-at "then\\|else")
                      ;; then and else start statements when they are inside
                      ;; blocks, not expressions.
@@ -328,9 +331,6 @@ But don't go before LIMIT."
                      (when (looking-at ";")
                        ;; Statement begins after the keyword
                        (throw 'done candidate-pos)))
-                    ((looking-at "elsif")
-                     ;; statement begins at the start of the keyword
-                     (throw 'done (point)))
                     ((looking-at "if")
                      (when (sqlind-good-if-candidate)
                        ;; statement begins at the start of the keyword
@@ -886,7 +886,7 @@ See also `sqlind-beginning-of-block'"
 
 (defconst sqlind-start-block-regexp
   (concat "\\(\\_<"
-	  (regexp-opt '("if" "then" "else" "elsif" "loop"
+	  (regexp-opt '("if" "then" "else" "elsif" "elseif" "loop"
 			"begin" "declare" "create" "alter" "exception"
 			"procedure" "function" "end" "case") t)
 	  "\\_>\\)\\|)\\|\\$\\$")
@@ -1310,7 +1310,7 @@ KIND is the symbol determining the type of the block ('if, 'loop,
 			  (list 'block-end start-kind start-label)))
 		   anchor))))
 
-	     ((memq block-kind '(else elsif))
+	     ((memq block-kind '(else elsif elseif))
 	      ;; search the enclosing then context and refine form there.  The
 	      ;; `cdr' in sqlind-syntax-of-line is used to remove the
 	      ;; block-start context for the else clause
@@ -1493,8 +1493,8 @@ not a statement-continuation POS is the same as the
     ;; create block start syntax if needed
 
     ((and (eq syntax-symbol 'in-block)
-          (memq (nth 1 syntax) '(if elsif then case))
-          (looking-at "\\(then\\|\\(els\\(e\\|if\\)\\)\\)\\_>"))
+          (memq (nth 1 syntax) '(if elsif elseif then case))
+          (looking-at "\\(then\\|\\(els\\(e\\|e?if\\)\\)\\)\\_>"))
      (let ((what (intern (sqlind-match-string 0))))
        ;; the only invalid combination is a then statement in
        ;; an (in-block "then") context
