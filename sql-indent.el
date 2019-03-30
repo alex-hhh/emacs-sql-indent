@@ -168,7 +168,7 @@ a string or comment."
     (let ((ppss-point (syntax-ppss point))
           (ppss-start (syntax-ppss start)))
       (and (equal (nth 3 ppss-point) (nth 3 ppss-start)) ; string
-           (equal (nth 4 ppss-start) (nth 4 ppss-start)) ; comment
+           (equal (nth 4 ppss-point) (nth 4 ppss-start)) ; comment
            (= (nth 0 ppss-point) (nth 0 ppss-start)))))) ; same nesting
 
 (defun sqlind-column-definition-start (pos limit)
@@ -1036,7 +1036,7 @@ reverse order (a stack) and is used to skip over nested blocks."
       ;; when we are not looking at a select component, find the
       ;; nearest one from us.
 
-      (while (re-search-backward sqlind-select-clauses-regexp start t)
+      (while (sqlind-search-backward (point) sqlind-select-clauses-regexp start)
 	(let* ((match-pos (match-beginning 0))
 	       (clause (sqlind-match-string 0)))
 	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
