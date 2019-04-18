@@ -252,7 +252,7 @@ symbols and their meaning."
        (save-excursion
          (forward-word 1)
          (sqlind-forward-syntactic-ws)
-         (looking-at "transaction"))))
+         (looking-at "transaction\\>\\|work\\>\\|;"))))
 
 ;;;; Syntactic analysis of SQL code
 

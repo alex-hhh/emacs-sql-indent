@@ -21,7 +21,7 @@ matrix:
   allow_failures:
     - env: EMACS_VERSION=snapshot
 env:
-  - EMACS_VERSION=25.2
+  - EMACS_VERSION=26.2
 before_install:
   # Configure $PATH: Executables are installed to $HOME/bin
   - export PATH="$HOME/bin:$PATH"
