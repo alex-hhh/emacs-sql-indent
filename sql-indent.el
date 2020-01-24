@@ -793,7 +793,7 @@ argument is t"
   "If (point) is on a procedure definition statement, report its syntax.
 See also `sqlind-beginning-of-block'"
   (catch 'exit
-    (when (looking-at "\\(procedure\\|function\\)\\(?:[ \t\n\r\f]+\\)\\([a-z0-9_]+\\)")
+    (when (looking-at "\\(procedure\\|function\\)\\(?:[ \t\n\r\f]+\\)\\(?:[a-z0-9_]+\\.\\)?\\([a-z0-9_]+\\)")
       (prog1 t                          ; make sure we return t
 	(let ((proc-name (sqlind-match-string 2)))
 	  ;; need to find out if this is a procedure/function
@@ -812,13 +812,21 @@ See also `sqlind-beginning-of-block'"
 	      ;; not a procedure after all.
 	      (throw 'exit nil)))
 
-          ;; Find out if it is a drop procedure or function statement
           (save-excursion
             (sqlind-backward-syntactic-ws)
+            ;; Find out if it is a drop procedure or function statement
             (forward-word -1)
             (when (looking-at "drop")
               ;; not a procedure after all
-              (throw 'exit nil)))
+              (throw 'exit nil))
+            ;; Find out if it is a "comment on" statement (postgres only)
+            (when (and (eq sql-product 'postgres)
+                       (looking-at "on"))
+              (sqlind-backward-syntactic-ws)
+              (forward-word -1)
+              (when (looking-at "comment")
+                ;; not a procedure after all.
+                (throw 'exit nil))))
 
 	  ;; so it is a definition
 
