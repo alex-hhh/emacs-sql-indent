@@ -282,7 +282,7 @@ determine the statement start in SQLite scripts.")
    (regexp-opt '("use" "go" "declare") t)
    "\\)\\b")
   "Match an MS SQL Sever directive at the beginning of a line.")
-  
+
 (defun sqlind-beginning-of-directive ()
   "Return the position of an SQL directive, or nil.
 We will never move past one of these in our scan.  We also assume
@@ -309,7 +309,7 @@ But don't go before LIMIT."
     (catch 'done
       (while (> (point) (or limit (point-min)))
         (when (re-search-backward
-               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|while\\|loop\\|if\\|then\\|else\\|elsif\\|elseif\\)\\_>\\|)"
+               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|while\\|loop\\|if\\|then\\|else\\|elsif\\|elseif\\)\\_>\\|)\\|\\$\\$"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
@@ -318,9 +318,14 @@ But don't go before LIMIT."
                      ;; of the keywords inside one of them and think this is a
                      ;; statement start.
                      (progn (forward-char 1) (forward-sexp -1)))
-                    ((looking-at "cursor\\|for\\|while")
-                     ;; statement begins at the start of the keyword
+                    ((looking-at "cursor\\|for")
+                     (unless (eq sql-product 'postgres)
+                       (throw 'done (point))))
+                    ((looking-at "while")
                      (throw 'done (point)))
+                    ((looking-at "declare")
+                     (when (eq sql-product 'postgres)
+                       (throw 'done (point))))
                     ((looking-at "else?if")
                      ;; statement begins at the start of the keyword
                      (throw 'done (point)))
@@ -340,6 +345,10 @@ But don't go before LIMIT."
                      (sqlind-backward-syntactic-ws)
                      (forward-sexp -1)
                      (throw 'done (point)))
+                    ((looking-at "\\$\\$")
+                     (when (eq sql-product 'postgres)
+                       (sqlind-forward-syntactic-ws)
+                       (throw 'done (point))))
                     ((sqlind-looking-at-begin-transaction)
                      ;; This is a "begin transaction" call, statement begins
                      ;; at "begin", see #66
@@ -634,11 +643,20 @@ expressions, also we don't match DECLARE directives here.
 
 See also `sqlind-beginning-of-block'"
   (when (looking-at "declare")
-    ;; a declare block is always toplevel, if it is not, its an error
-    (throw 'finished
-      (if (null sqlind-end-stmt-stack)
-	  'declare-statement
-        (list 'syntax-error "nested declare block" (point) (point))))))
+
+    ;; In Postgres, a DECLARE statement can be a block, or define a cursor
+    ;; (see pr67.sql, pr92.sql for examples).  It is somewhat tricky to
+    ;; determine which is which, so we use the heuristic that a declare
+    ;; statement immediately following a $$ is a block, otherwise it is not.
+    (when (or (not (eq sql-product 'postgres))
+              (save-excursion
+                (sqlind-backward-syntactic-ws)
+                (skip-syntax-backward "_") ; note that the $$ is symbol constitent!
+                (looking-at "\\$\\$")))
+      (throw 'finished
+        (if (null sqlind-end-stmt-stack)
+            'declare-statement
+          (list 'syntax-error "nested declare block" (point) (point)))))))
 
 (defun sqlind-maybe-skip-create-options ()
   "Move point past any MySQL option declarations.
@@ -939,7 +957,7 @@ reverse order (a stack) and is used to skip over nested blocks."
   ;;
   ;; Some of these `sqlind-maybe-*` functions are specific to the
   ;; `sql-product` and are only invoked for the speficied SQL dialect.
-  
+
   (catch 'finished
     (let ((sqlind-end-stmt-stack end-statement-stack))
       (while (re-search-backward sqlind-start-block-regexp sqlind-search-limit 'noerror)
@@ -953,7 +971,8 @@ reverse order (a stack) and is used to skip over nested blocks."
             (sqlind-maybe-else-statement)
             (sqlind-maybe-loop-statement)
             (sqlind-maybe-begin-statement)
-            (when (eq sql-product 'oracle) ; declare statements only start blocks in PL/SQL
+            (when (memq sql-product '(oracle postgres))
+              ;; declare statements only start blocks in PL/SQL and PostgresSQL
               (sqlind-maybe-declare-statement))
             (when (eq sql-product 'postgres)
               (sqlind-maybe-$$-statement))
@@ -1130,7 +1149,7 @@ statement is found."
                            (sqlind-backward-syntactic-ws)
 			   (looking-at ",")))
 		 (throw 'finished (cons 'select-table match-pos)))
-               
+
 	       ;; otherwise, we continue the table definition from the
 	       ;; previous line.
 	       (throw 'finished (cons 'select-table-continuation match-pos)))
@@ -1420,7 +1439,7 @@ not a statement-continuation POS is the same as the
   (let ((syntax (sqlind-syntax context))
         (anchor (sqlind-anchor-point context))
         (syntax-symbol (sqlind-syntax-symbol context)))
-    
+
     (goto-char pos)
 
     (cond
@@ -1472,13 +1491,27 @@ not a statement-continuation POS is the same as the
          ;; CURSOR name type IS
          (when (looking-at "cursor\\b")
            (let ((origin (point)))
-             (forward-sexp 3)
+             (forward-sexp 1)           ; skip "cursor"
              (sqlind-forward-syntactic-ws)
-             (when (looking-at "is\\b")
-               (goto-char (match-end 0))
-               (sqlind-forward-syntactic-ws))
+             (forward-sexp 1)
+             (sqlind-forward-syntactic-ws)
+             (if (looking-at "is\\b")
+                 (progn
+                   (goto-char (match-end 0))
+                   (sqlind-forward-syntactic-ws))
+               (forward-sexp 1)
+               (sqlind-forward-syntactic-ws)
+               (when (looking-at "is\\b")
+                 (goto-char (match-end 0))
+                 (sqlind-forward-syntactic-ws)))
              (unless (<= (point) pos)
                (goto-char origin))))
+
+         ;; Skip a PostgreSQL cursor declaration
+         (when (and (eq sql-product 'postgres)
+                    (looking-at "\\(\\(declare\\)\\|\\(cursor\\)\\|\\(for\\)\\)\\b"))
+           (when (re-search-forward "\\b\\(select\\|update\\|delete\\|insert\\)\\b" pos 'noerror)
+             (goto-char (match-beginning 0))))
 
          ;; skip a forall statement if it is before our point
          (when (looking-at "forall\\b")
@@ -1631,6 +1664,9 @@ procedure block."
                        ;; contexts
                        (or (not (looking-at "\\(create\\)\\|\\(alter\\)"))
                            (catch 'finished (sqlind-maybe-create-statement) nil))
+                       ;; A declare statement may or may not be a block context
+                       (or (not (looking-at "declare"))
+                           (catch 'finished (sqlind-maybe-declare-statement) nil))
                        (not (sqlind-looking-at-begin-transaction))))
           (goto-char pos)
           ;; if we are at the start of a statement, or the nearest statement
