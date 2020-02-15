@@ -651,8 +651,8 @@ See also `sqlind-beginning-of-block'"
     (when (or (not (eq sql-product 'postgres))
               (save-excursion
                 (sqlind-backward-syntactic-ws)
-                (skip-syntax-backward "_") ; note that the $$ is symbol constitent!
-                (looking-at "\\$\\$")))
+                (skip-syntax-backward "_w") ; note that the $$ is symbol constituent!
+                (looking-at "\\(\\$\\$\\)\\|begin\\|then\\|else")))
       (throw 'finished
         (if (null sqlind-end-stmt-stack)
             'declare-statement
@@ -1634,6 +1634,15 @@ not a statement-continuation POS is the same as the
      (push (sqlind-refine-end-syntax
             nil "" (point) context)
            context))
+
+    ;; See #92 and pr92b.sql, no such thing as a nested declare statement, use
+    ;; the context of the previous declare-statement!
+    ((and (eq sql-product 'postgres)
+          (eq syntax-symbol 'declare-statement)
+          (looking-at "declare\\_>"))
+     (goto-char anchor)
+     (setq context (sqlind-syntax-of-line)))
+
     )
   context))
 
