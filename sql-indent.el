@@ -2209,8 +2209,8 @@ If this rule is added to the 'in-select-clause syntax after the
 `sqlind-lineup-to-clause-end' rule, it will adjust lines starting
 with AND, OR or NOT to be aligned so they sit under the WHERE clause."
   (save-excursion
+    (back-to-indentation)
     (cl-destructuring-bind ((_sym clause) . anchor) (car syntax)
-      (back-to-indentation)
       (if (and (equal clause "where")
                (looking-at "and\\|or\\|not"))
           (progn
