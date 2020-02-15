@@ -1946,11 +1946,14 @@ clause (select, from, where, etc) in which the current point is.
     (in-select-clause               sqlind-lineup-to-clause-end
                                     sqlind-right-justify-logical-operator)
     (insert-clause                  sqlind-right-justify-clause)
-    (in-insert-clause               sqlind-lineup-to-clause-end)
+    (in-insert-clause               sqlind-lineup-to-clause-end
+                                    sqlind-right-justify-logical-operator)
     (delete-clause                  sqlind-right-justify-clause)
-    (in-delete-clause               sqlind-lineup-to-clause-end)
+    (in-delete-clause               sqlind-lineup-to-clause-end
+                                    sqlind-right-justify-logical-operator)
     (update-clause                  sqlind-right-justify-clause)
-    (in-update-clause               sqlind-lineup-to-clause-end))
+    (in-update-clause               sqlind-lineup-to-clause-end
+                                    sqlind-right-justify-logical-operator))
   "Define the indentation amount for each syntactic symbol.
 
 The value of this variable is an ALIST with the format:
@@ -2206,11 +2209,14 @@ If this rule is added to the 'in-select-clause syntax after the
 `sqlind-lineup-to-clause-end' rule, it will adjust lines starting
 with AND, OR or NOT to be aligned so they sit under the WHERE clause."
   (save-excursion
-    (back-to-indentation)
     (cl-destructuring-bind ((_sym clause) . anchor) (car syntax)
+      (back-to-indentation)
       (if (and (equal clause "where")
                (looking-at "and\\|or\\|not"))
-          (- base-indentation (1+ (- (match-end 0) (match-beginning 0))))
+          (progn
+            (goto-char anchor)
+            (+ (current-column)
+               (- (length clause) (- (match-end 0) (match-beginning 0)))))
         base-indentation))))
 
 (defun sqlind-left-justify-logical-operator (syntax base-indentation)
