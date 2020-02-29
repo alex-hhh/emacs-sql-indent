@@ -480,6 +480,15 @@ clause (select, from, where, etc) in which the current point is.
  * ~(in-update-clause CLAUSE)~ -- line is inside an update CLAUSE, which can
    be "update", "set" or "where"
 * Limitations
+
+The sql-indent package does not contain a full SQL parser, instead it relies
+on various heuristics to determine the context of each line in a SQL program.
+Relying on heuristics means that sometimes valid SQL code is not detected
+correctly, and therefore the indentation will be wrong.
+
+This section contains some of the known cases that are incorrectly detected,
+and provides some workarounds for them.
+
 ** Parsing expressions
 
 There is no support for parsing SQL expressions, so if an expression is broken
@@ -552,5 +561,74 @@ workarounds:
          col2,
     from some_table;
 #+END_SRC
+
+** DECLARE statements in Postgres
+
+The DECLARE statement in Postgres can start a block of declarations or declare
+a single item.  Unfortunately, the sql-indent package is not always able to
+differentiate between the two.  Curently, DECLARE blocks are only recognized
+at the start of another enclosing block, such as $$, BEGIN, THEN or ELSE, but
+they can occur on other situations.  The workaround is to enclose the DECLARE
+block inside a BEGIN/END block or to use individual DECLARE statements.
+
+For more info see https://github.com/alex-hhh/emacs-sql-indent/issues/92
+
+DECLARE blocks are not recognized when the follow normal statements,
+sql-indent considers them single statements instead.  In the example below,
+DECLARE is considered a statement, and the ~local_b~ declaration is anchored
+off the previous BEGIN statement:
+
+#+BEGIN_SRC sql
+  -- NOT SUPPORTED: `local_b` is not recognized as a declaration
+  create function less_than(a text, b text) returns boolean as $$
+    begin
+      raise debug 'less_than(%, %)', a, b;
+      declare
+        local_a text := a;
+      local_b text := b;
+      begin
+        return local_a < local_b;
+      end;
+    end;
+  end;
+  $$ language plpgsql;
+#+END_SRC sql
+
+The workaround is to either surround the DECLARE block with a BEGIN/END
+statement, or to prefix each variable declaration with DECLARE, as in the two
+examples below:
+
+#+BEGIN_SRC sql
+  -- WORKAROUND 1: surround the DECLARE/BEGIN/END with another BEGIN/END block
+  create function less_than(a text, b text) returns boolean as $$
+    begin
+      raise debug 'less_than(%, %)', a, b;
+      begin
+        declare
+          local_a text := a;
+          local_b text := b;
+        begin
+          return local_a < local_b;
+        end;
+      end;
+    end;
+  end;
+  $$ language plpgsql;
+
+  -- WORKAROUND 2: declare each variable individually
+  create function less_than(a text, b text) returns boolean as $$
+    begin
+      raise debug 'less_than(%, %)', a, b;
+      declare
+        local_a text := a;
+      declare
+        local_b text := b;
+      begin
+        return local_a < local_b;
+      end;
+    end;
+  end;
+  $$ language plpgsql;
+#+END_SRC sql
 
 .
