@@ -4,7 +4,7 @@
 
 ;; Author: Alex Harsanyi <AlexHarsanyi@gmail.com>
 ;; Created: 27 Sep 2006
-;; Version: 1.4
+;; Version: 1.5
 ;; Keywords: languages sql
 ;; Homepage: https://github.com/alex-hhh/emacs-sql-indent
 ;; Package-Requires: ((cl-lib "0.5"))

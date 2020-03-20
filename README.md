@@ -1,6 +1,6 @@
 # Syntax based indentation for SQL files for GNU Emacs
 
-[![Build Status](https://travis-ci.org/alex-hhh/emacs-sql-indent.svg?branch=master)](https://travis-ci.org/alex-hhh/emacs-sql-indent)
+![CI](https://github.com/alex-hhh/emacs-sql-indent/workflows/CI/badge.svg)
 
 sql-indent.el is a GNU Emacs minor mode which adds support for syntax-based
 indentation when editing SQL code: TAB indents the current line based on the
