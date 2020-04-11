@@ -1,5 +1,6 @@
 .elpaignore
 .gitignore
+.github
 .travis.yml
 test-data
 sql-indent-test.el
