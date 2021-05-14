@@ -454,8 +454,8 @@ clause (select, from, where, etc) in which the current point is.
    defined and a new one is about to start.
 
  * ~select-table-continuation~ -- line is inside the from clause, inside a
-   table definition which starts on a previous line. Note that ANCHOR still
-   points to the start of the select statement itself.
+   table definition which starts on a previous line. ANCHOR still points to
+   the start of the table definition.
 
  * ~(in-select-clause CLAUSE)~ -- line is inside the select CLAUSE, which can
    be "where", "order by", "group by" or "having".  Note that CLAUSE can never

@@ -1135,7 +1135,9 @@ statement is found."
 		 ;; condition
 		 (goto-char pos)
 		 (when (or (looking-at sqlind-join-condition-regexp)
-			   (progn (forward-word -1) (looking-at sqlind-select-join-regexp)))
+			   (progn (forward-word -1)
+                                  (and (sqlind-same-level-statement (point) pos)
+                                       (looking-at sqlind-select-join-regexp))))
 		   ;; look for the join start, that will be the anchor
                    (let ((jstart (sqlind-find-join-start (point) start)))
                      (when jstart
@@ -1144,15 +1146,44 @@ statement is found."
 	       ;; if this line starts with a ',' or the previous line starts
 	       ;; with a ',', we have a new table
 	       (goto-char pos)
+               ;; NOTE: the combination of tests and movement operations in
+               ;; the when clause is not ideal...
 	       (when (or (looking-at ",")
+                         (looking-at sqlind-select-join-regexp)
+                         (looking-at "join\\b")
 			 (progn
                            (sqlind-backward-syntactic-ws)
-			   (looking-at ",")))
+                           (or (looking-at ",")
+                               (progn
+                                 (forward-word -1)
+                                 (or (looking-at sqlind-select-join-regexp)
+                                     (looking-at "join\\b")
+                                     (looking-at "from\\b"))))))
 		 (throw 'finished (cons 'select-table match-pos)))
 
-	       ;; otherwise, we continue the table definition from the
-	       ;; previous line.
-	       (throw 'finished (cons 'select-table-continuation match-pos)))
+               (goto-char pos)
+               (let ((limit match-pos))
+                 (if (sqlind-search-backward (point) (regexp-opt (list "," "join") 'symbols) limit)
+                     (progn
+                       (goto-char (match-end 0))
+                       (sqlind-forward-syntactic-ws)
+                       (when (looking-at "lateral")
+                         (forward-word 1)
+                         (sqlind-forward-syntactic-ws))
+	               ;; otherwise, we continue the table definition from the
+	               ;; previous line.
+	               (throw 'finished
+                         ;; If, after following all these joins, we got back
+                         ;; to our line, we are in a select-table after all,
+                         ;; otherwise it is a table continuation.
+                         (if (eq (point) pos)
+                             (cons 'select-table match-pos)
+                           (cons 'select-table-continuation (point)))))
+                   (progn               ; this must be the first table in the FROM section
+                     (when (looking-at "from\\b")
+                       (forward-word)
+                       (sqlind-forward-syntactic-ws))
+                     (throw 'finished (cons 'select-table-continuation (point)))))))
 
 	      (t
 	       (throw 'finished
@@ -2373,7 +2404,7 @@ example:
 
 (defun sqlind-lineup-into-nested-statement (syntax _base-indentation)
   "Align the line to the first word inside a nested statement.
-Return the column of the first non-witespace char in a nested
+Return the column of the first non-whitespace char in a nested
 statement.  For example:
 
   (    a,
@@ -2384,9 +2415,17 @@ This function only makes sense in a
 'nested-statement-continuation SYTNAX indentation rule."
   (save-excursion
     (goto-char (sqlind-anchor-point syntax))
-    (forward-char 1)
-    (sqlind-forward-syntactic-ws)
-    (current-column)))
+    (end-of-line)
+    (let ((limit (point)))
+      (goto-char (sqlind-anchor-point syntax))
+      (forward-char 1)
+      (sqlind-forward-syntactic-ws)
+      (if (< (point) limit)
+          (current-column)
+        (progn
+          (goto-char (sqlind-anchor-point syntax))
+          (back-to-indentation)
+          (+ (current-column) sqlind-basic-offset))))))
 
 ;;;;; sqlind-indent-line
 

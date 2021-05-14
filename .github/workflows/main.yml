@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         emacs_version:
-          - 26.3
+          - 27.1
     steps:
     - uses: purcell/setup-emacs@master
       with:
