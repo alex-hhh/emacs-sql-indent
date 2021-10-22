@@ -1626,7 +1626,8 @@ not a statement-continuation POS is the same as the
      (push (cons (list 'block-start 'exception) anchor) context))
 
     ((and (eq syntax-symbol 'in-block)
-          (memq (nth 1 syntax) '(then case)))
+          (memq (nth 1 syntax) '(then case))
+          (not (looking-at "end\\s-*\\_<\\(if\\|case\\)\\_>")))
      (if (looking-at "when\\_>")
          (push (cons (list 'block-start 'when) anchor) context)
        ;; NOTE: the "when" case is handed above
