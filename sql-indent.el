@@ -1048,6 +1048,7 @@ reverse order (a stack) and is used to skip over nested blocks."
    "\\_<\\("
    "\\(\\(union\\(\\s-+all\\)?\\)\\|intersect\\|minus\\|except\\)?[ \t\r\n\f]*select\\|"
    "\\(bulk[ \t\r\n\f]+collect[ \t\r\n\f]+\\)?into\\|"
+   "perform\\|"
    "from\\|"
    "where\\|"
    "order[ \t\r\n\f]+by\\|"
@@ -1110,7 +1111,8 @@ statement is found."
 	  (setq clause (replace-regexp-in-string "[ \t\r\n\f]" " " clause))
 	  (when (sqlind-same-level-statement (point) start)
 	    (cond
-	      ((looking-at "select\\(\\s *\\_<\\(top\\s +[0-9]+\\|distinct\\|unique\\)\\_>\\)?")
+	      ((or (looking-at "select\\(\\s *\\_<\\(top\\s +[0-9]+\\|distinct\\|unique\\)\\_>\\)?")
+                   (and (eq sql-product 'postgres) (looking-at "perform\\_>")))
 	       ;; we are in the column selection section.
 	       (goto-char pos)
                (if (looking-at ",")
@@ -1562,6 +1564,9 @@ not a statement-continuation POS is the same as the
              ((looking-at "with")
               (push (sqlind-syntax-in-with pos (point)) context))
              ((looking-at "select")
+              (push (sqlind-syntax-in-select pos (point)) context))
+             ((and (eq sql-product 'postgres)
+                   (looking-at "perform"))
               (push (sqlind-syntax-in-select pos (point)) context))
              ((looking-at "insert")
               (push (sqlind-syntax-in-insert pos (point)) context))
@@ -2184,7 +2189,8 @@ first column after the SELECT clause we simply add
 `sqlind-basic-offset'."
   (save-excursion
     (goto-char (sqlind-anchor-point syntax))
-    (when (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
+    (when (or (looking-at "select\\s *\\(top\\s +[0-9]+\\|distinct\\|unique\\)?")
+              (and (eq sql-product 'postgres) (looking-at "perform\\_>")))
       (goto-char (match-end 0)))
     (skip-syntax-forward " ")
     (if (or (looking-at sqlind-comment-start-skip)
