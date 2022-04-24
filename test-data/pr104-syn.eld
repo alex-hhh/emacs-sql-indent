@@ -1,0 +1,6 @@
+(((toplevel . 1))
+ (((create-statement table "x")
+   . 1))
+ (((create-statement table "x")
+   . 1))
+ ((toplevel . 1)))
