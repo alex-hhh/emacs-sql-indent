@@ -497,7 +497,7 @@ We try to avoid false positives, like \"end if\" or the various
          (forward-word -1)
          ;; we don't want to match an "end if", and things like "drop index if
          ;; exists..." and "create index if not exist..."
-         (not (looking-at "end\\|schema\\|table\\|view\\|index\\|type\\|trigger\\|procedure\\|function\\|routine\\|package\\|body\\|extension")))))
+         (not (looking-at "end\\|schema\\|table\\|view\\|index\\|constraint\\|type\\|trigger\\|procedure\\|function\\|routine\\|package\\|body\\|extension")))))
 
 (defun sqlind-maybe-if-statement ()
   "If (point) is on an IF statement, report its syntax."
