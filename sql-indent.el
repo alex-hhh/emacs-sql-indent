@@ -652,7 +652,7 @@ See also `sqlind-beginning-of-block'"
               (save-excursion
                 (sqlind-backward-syntactic-ws)
                 (skip-syntax-backward "_w") ; note that the $$ is symbol constituent!
-                (looking-at "\\(\\$\\$\\)\\|begin\\|then\\|else")))
+                (looking-at "\\(\\$\\$\\)\\|begin\\|then\\|else\\|\\(<<[a-z0-9_]+>>\\)")))
       (throw 'finished
         (if (null sqlind-end-stmt-stack)
             'declare-statement
