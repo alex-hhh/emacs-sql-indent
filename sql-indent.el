@@ -353,6 +353,11 @@ But don't go before LIMIT."
                      ;; This is a "begin transaction" call, statement begins
                      ;; at "begin", see #66
                      (throw 'done (point)))
+		    ((looking-at "begin")
+		     (goto-char candidate-pos)
+		     (sqlind-forward-syntactic-ws)
+		     (sqlind-maybe-skip-begin-options)
+		     (throw 'done (point)))
                     ((not (sqlind-in-comment-or-string (point)))
                      (throw 'done candidate-pos))))))))))
 
@@ -570,6 +575,23 @@ See also `sqlind-beginning-of-block'"
                       (throw 'finished
 			     (list 'syntax-error
 				   "bad closing for loop block" (point) pos))))))))))))
+
+(defun sqlind-maybe-skip-begin-options ()
+  "Move point past any BEGIN options: \"ATOMIC\" or \"NOT ATOMIC\".
+
+We need this functionality to find the proper beginning of the
+first statement inside a BEGIN construct: see
+`sqlind-beginning-of-statement-1'.
+
+\"BEGIN ATOMIC\" is part of standard SQL function definition
+syntax while \"NOT ATOMIC\" finds mention in IBM DB2®
+documentation and is therefore in for completeness."
+  (when (looking-at "not\\_>")
+    (goto-char (match-end 0))
+    (sqlind-forward-syntactic-ws))
+  (when (looking-at "atomic\\_>")
+    (goto-char (match-end 0))
+    (sqlind-forward-syntactic-ws)))
 
 (defun sqlind-maybe-begin-statement ()
   "Return the syntax of a \"begin\" statement.
