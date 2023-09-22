@@ -93,8 +93,8 @@ This is used to indent multi-line comments.")
 
 (defsubst sqlind-in-comment-or-string (pos)
   "Return non nil if POS is inside a comment or a string.
-We actually return 'string if POS is inside a string, 'comment if
-POS is inside a comment, nil otherwise."
+We actually return \\='string if POS is inside a string,
+\\='comment if POS is inside a comment, nil otherwise."
   (syntax-ppss-context (syntax-ppss pos)))
 
 (defun sqlind-backward-syntactic-ws ()
@@ -174,7 +174,7 @@ a string or comment."
 (defun sqlind-column-definition-start (pos limit)
   "Find the beginning of a column definition in a select statement.
 POS is the current position of the line to be indented, assumed
-to be in a 'select-column-continuation syntax.
+to be in a \\='select-column-continuation syntax.
 
 LIMIT is the limit of the search, the beginning of the select
 statement."
@@ -209,8 +209,8 @@ See `sqlind-syntax-of-line' for the definition of CONTEXT."
 
 (defun sqlind-syntax-keyword (context)
   "Return the syntax keyword for the most specific syntax of CONTEXT.
-This is used for complex syntax symbols like '(in-block case
-\"\"), in that case, it will return the 'case symbol.  See
+This is used for complex syntax symbols like \\='(in-block case
+\"\"), in that case, it will return the \\='case symbol.  See
 `sqlind-syntax-of-line' for the definition of CONTEXT."
   (when context
     (let ((syntax-part (caar context)))
@@ -1283,14 +1283,14 @@ statement is found."
 ;;;;; Refine the syntax of an end statement.
 
 (defun sqlind-refine-end-syntax (end-kind end-label end-pos context)
-  "Return a 'block-end syntax for a line containing an \"end\" keyword.
+  "Return a \\='block-end syntax when line contains an \"end\" keyword.
 
-END-KIND contains the symbol after the end statement ('if if the
-statement is an \"end if\", 'loop if the statement is an \"end
-loop\", etc).  This can be nil if there is a plain \"end\"
+END-KIND contains the symbol after the end statement (\\='if if
+the statement is an \"end if\", \\='loop if the statement is an
+\"end loop\", etc).  This can be nil if there is a plain \"end\"
 keyword.
 
-END-LABEL contains the label of the end statement, if there is
+END-LABEL contains the label of the end statement, when there is
 one.
 
 END-POS is the position where the \"end\" keyword is.
@@ -1299,12 +1299,13 @@ CONTEXT represents the syntactic context up to the current line.
 
 The function will perform some validations, for example, an \"end
 if\" must close an if statement, an \"end loop\" must close a
-loop, etc.  It will return a 'syntax-error syntax if the
+loop, etc.  It will return a \\='syntax-error syntax if the
 validation fails.
 
 If all checks pass, it will return a (block-end KIND LABEL) where
-KIND is the symbol determining the type of the block ('if, 'loop,
-'procedure, etc) and LABEL is the block label, if there is any."
+KIND is the symbol determining the type of the block (\\='if,
+\\='loop, \\='procedure, etc) and LABEL is the block label, if
+there is any."
   (catch 'done
 
     (when (null context)                ; can happen
@@ -2081,7 +2082,7 @@ returned."
 ;;;;; Indentation helper functions
 
 (defun sqlind-report-sytax-error (syntax _base-indentation)
-  "Report a syntax error for a 'syntax-error SYNTAX."
+  "Report a syntax error for a \\='syntax-error SYNTAX."
   (cl-destructuring-bind (_sym msg start end) (sqlind-syntax syntax)
     (message "%s (%d %d)" msg start end))
   nil)
@@ -2246,9 +2247,10 @@ Argument BASE-INDENTATION is updated."
 SYNTAX is the syntax of the current line, BASE-INDENTATION is the
 current indentation, which we need to update.
 
-If this rule is added to the 'in-select-clause syntax after the
-`sqlind-lineup-to-clause-end' rule, it will adjust lines starting
-with AND, OR or NOT to be aligned so they sit under the WHERE clause."
+If this rule is added to the \\='in-select-clause syntax after
+the `sqlind-lineup-to-clause-end' rule, it will adjust lines
+starting with AND, OR or NOT to be aligned so they sit under the
+WHERE clause."
   (save-excursion
     (back-to-indentation)
     (cl-destructuring-bind ((_sym clause) . anchor) (car syntax)
@@ -2266,9 +2268,10 @@ with AND, OR or NOT to be aligned so they sit under the WHERE clause."
 SYNTAX is the syntax of the current line, BASE-INDENTATION is the
 current indentation, which we need to update.
 
-If this rule is added to the 'in-select-clause syntax after the
-`sqlind-lineup-to-clause-end' rule, it will adjust lines starting
-with AND, OR or NOT to be aligned so they sit left under the WHERE clause."
+If this rule is added to the \\='in-select-clause syntax after
+the `sqlind-lineup-to-clause-end' rule, it will adjust lines
+starting with AND, OR or NOT to be aligned so they sit left under
+the WHERE clause."
   (save-excursion
     (back-to-indentation)
     (cl-destructuring-bind ((_sym clause) . anchor) (car syntax)
@@ -2387,9 +2390,9 @@ the FROM keyword."
 
 (defun sqlind-lineup-open-paren-to-anchor (syntax base-indentation)
   "Align an open paranthesis with the anchor point of SYNTAX.
-If the line starts with an open paren '(', return the column of
-the anchor point.  If line does not start with an open paren, the
-function returns BASE-INDENTATION, acting as a no-op."
+If the line starts with an open paren \\='(\\=', return the
+column of the anchor point.  If line does not start with an open
+paren, the function returns BASE-INDENTATION, acting as a no-op."
   (save-excursion
     (back-to-indentation)
     (if (looking-at "(")
@@ -2414,11 +2417,11 @@ Return the column of the first non-whitespace char in a nested
 statement.  For example:
 
   (    a,
-       b, -- b is always aligned with 'a'
+       b, -- b is always aligned with \\='a\\='
   )
 
 This function only makes sense in a
-'nested-statement-continuation SYTNAX indentation rule."
+\\='nested-statement-continuation SYTNAX indentation rule."
   (save-excursion
     (goto-char (sqlind-anchor-point syntax))
     (end-of-line)
@@ -2546,8 +2549,8 @@ will indent the line according to the syntactic context of the
 SQL statement being edited.
 
 A set of alignment rules are also enabled with this minor mode.
-Selecting a region of text and typing `M-x align RET` will align
-the statements.  This can be used, for example, to align the 'as'
+Selecting a region of text and typing `M-x align RET' will align
+the statements.  This can be used, for example, to align the `as'
 column aliases in select statements."
   :lighter " sqlind"
   ;; :group 'sqlind  ;;FIXME: There's no such group!
