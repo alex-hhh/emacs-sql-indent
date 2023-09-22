@@ -308,8 +308,7 @@ But don't go before LIMIT."
   (save-excursion
     (catch 'done
       (while (> (point) (or limit (point-min)))
-        (when (re-search-backward
-               ";\\|:=\\|\\_<\\(declare\\|begin\\|cursor\\|for\\|while\\|loop\\|if\\|then\\|else\\|elsif\\|elseif\\)\\_>\\|)\\|\\$\\$"
+        (when (re-search-backward ";\\|:=\\|\\_<\\(declare\\|\\(begin\\(\\(\\s-+not\\)?\\s-+atomic\\)?\\)\\|cursor\\|for\\|while\\|loop\\|if\\|then\\|else\\|elsif\\|elseif\\)\\_>\\|)\\|\\$\\$"
                limit 'noerror)
           (unless (sqlind-in-comment-or-string (point))
             (let ((candidate-pos (match-end 0)))
