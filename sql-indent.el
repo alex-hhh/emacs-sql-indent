@@ -500,7 +500,7 @@ We try to avoid false positives, like \"end if\" or the various
 
 (defun sqlind-maybe-if-statement ()
   "If (point) is on an IF statement, report its syntax."
-  (when (sqlind-good-if-candidate)
+  (when (and (sqlind-good-if-candidate) (not (eq sql-product 'ms)))
     (cond ((null sqlind-end-stmt-stack)
            (throw 'finished (list 'in-block 'if "")))
           (t
@@ -1551,6 +1551,13 @@ not a statement-continuation POS is the same as the
            (when (re-search-forward "\\b\\(select\\|update\\|delete\\|insert\\)\\b" pos 'noerror)
              (goto-char (match-beginning 0))))
 
+         ;; MS SQL IF keywords start a simple statement, so we skip it
+         (when (and (eq sql-product 'ms) (looking-at "if\\b"))
+           (forward-word 1)             ; skip the if keyword
+           (forward-sexp 1)             ; skip next sexp (if arg)
+           (when (re-search-forward "\\b\\(select\\|update\\|delete\\|insert\\)\\b" pos 'noerror)
+             (goto-char (match-beginning 0))))
+
          ;; only check for syntax inside DML clauses if we are not
          ;; at the start of one.
          (when (< (point) pos)
@@ -1705,7 +1712,10 @@ procedure block."
 
         (goto-char context-start)
         (when (or (>= context-start pos)
-                  (and (looking-at sqlind-start-block-regexp)
+                  (and (and (looking-at sqlind-start-block-regexp)
+                            ;; an IF keyword in MSSQL does not start a block
+                            (not (and (eq sql-product 'ms)
+                                      (looking-at "\\_<if\\_>"))))
                        ;; create table/view/index statements are not block
                        ;; contexts
                        (or (not (looking-at "\\(create\\)\\|\\(alter\\)"))
