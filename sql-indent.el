@@ -1,6 +1,6 @@
 ;;; sql-indent.el --- Support for indenting code in SQL files. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015, 2017-2018  Free Software Foundation, Inc
+;; Copyright (C) 2015, 2017-2018, 2024  Free Software Foundation, Inc
 
 ;; Author: Alex Harsanyi <AlexHarsanyi@gmail.com>
 ;; Created: 27 Sep 2006
@@ -496,7 +496,7 @@ We try to avoid false positives, like \"end if\" or the various
          (forward-word -1)
          ;; we don't want to match an "end if", and things like "drop index if
          ;; exists..." and "create index if not exist..."
-         (not (looking-at "end\\|schema\\|table\\|view\\|index\\|constraint\\|type\\|trigger\\|procedure\\|function\\|routine\\|package\\|body\\|extension")))))
+         (not (looking-at "end\\|schema\\|table\\|column\\|view\\|index\\|constraint\\|type\\|trigger\\|procedure\\|function\\|routine\\|package\\|body\\|extension")))))
 
 (defun sqlind-maybe-if-statement ()
   "If (point) is on an IF statement, report its syntax."
